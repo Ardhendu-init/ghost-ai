@@ -10,7 +10,31 @@ interface ProjectSidebarProps {
   onClose: () => void;
 }
 
+"use client";
+
+import { Plus, X } from "lucide-react";
+import { Button } from "`@/components/ui/button`";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "`@/components/ui/tabs`";
+import { ScrollArea } from "`@/components/ui/scroll-area`";
+import { useEffect } from "react";
+
+interface ProjectSidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
 export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isOpen, onClose]);
+
   return (
     <>
       {isOpen && (
@@ -65,6 +89,7 @@ export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
       </aside>
     </>
   );
+}
 }
 
 function EmptyState() {
