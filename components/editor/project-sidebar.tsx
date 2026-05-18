@@ -45,7 +45,7 @@ export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
       )}
 
       <aside
-        className={`fixed left-0 top-0 h-screen w-80 z-40 flex flex-col bg-card border-r border-border transition-transform duration-300 ${
+        className={`fixed left-0 top-16 h-[calc(100vh-4rem)] w-80 z-40 flex flex-col bg-card border-r border-border transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
