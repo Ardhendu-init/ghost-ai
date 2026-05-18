@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Design System Setup
+- Editor Chrome Implementation
 
 ## Current Goal
 
-- Install shadcn/ui, configure components, and set up design system utilities
+- Build the base editor chrome components — navbar and sidebar shell — for reuse across all editor screens
 
 ## Completed
 
@@ -24,13 +24,32 @@ Update this file whenever the current phase, active feature, or implementation s
   - ✓ All button variants working (Primary, Outline, Secondary, Ghost, Destructive)
   - ✓ Cards, inputs, and all components render with correct dark colors
 
+- Editor chrome components setup (02-editor.md):
+  - Created `components/editor/editor-navbar.tsx`:
+    - Fixed-height (h-16) top navbar with left, center, right sections
+    - Sidebar toggle button with PanelLeftOpen/PanelLeftClose icons
+    - Dark background (bg-card) with subtle bottom border
+  - Created `components/editor/project-sidebar.tsx`:
+    - Floating overlay sidebar (z-40) that slides in from left
+    - Accepts isOpen and onClose props with smooth transitions
+    - Header with "Projects" title and close button (X icon)
+    - shadcn Tabs component with "My Projects" and "Shared" tabs
+    - Empty placeholder state in both tabs
+    - Full-width "New Project" button at bottom with Plus icon
+  - Created `components/editor/dialog-pattern.tsx`:
+    - Reusable dialog pattern supporting title, description, and footer actions
+    - Uses dark background with rounded-3xl radius (modal radius scale)
+    - Color tokens from globals.css applied via shadcn theming
+  - All components compile without TypeScript errors
+  - No ESLint warnings or errors
+
 ## In Progress
 
 - None yet.
 
 ## Next Up
 
-- Add the next planned feature unit here.
+- Integrate navbar and sidebar into editor layout page
 
 ## Open Questions
 
