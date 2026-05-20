@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Editor Chrome Implementation
+- Authentication Integration
 
 ## Current Goal
 
-- Build the base editor chrome components — navbar and sidebar shell — for reuse across all editor screens
+- Complete Clerk authentication setup with protected routes and UI
 
 ## Completed
 
@@ -29,6 +29,7 @@ Update this file whenever the current phase, active feature, or implementation s
     - Fixed-height (h-16) top navbar with left, center, right sections
     - Sidebar toggle button with PanelLeftOpen/PanelLeftClose icons
     - Dark background (bg-card) with subtle bottom border
+    - UserButton added to right section for profile settings and logout
   - Created `components/editor/project-sidebar.tsx`:
     - Floating overlay sidebar (z-40) that slides in from left
     - Accepts isOpen and onClose props with smooth transitions
@@ -43,13 +44,46 @@ Update this file whenever the current phase, active feature, or implementation s
   - All components compile without TypeScript errors
   - No ESLint warnings or errors
 
+- Authentication setup (03-auth.md):
+  - Installed @clerk/ui dependency
+  - Created `proxy.ts` at project root with clerkMiddleware
+    - Public routes: /sign-in, /sign-up and their catch-all routes
+    - All other routes protected by default
+  - Wrapped root layout with ClerkProvider in `app/layout.tsx`
+  - Created sign-in page (`app/sign-in/[[...sign-in]]/page.tsx`):
+    - Two-panel layout on large screens with rounded border and shadow
+    - Left panel: gradient background (indigo-purple to cyan), compelling headline, motivational tagline, "A WISE QUOTE" label
+    - Right panel: elevated dark surface with centered Clerk SignIn component
+    - Form-only layout on small screens (full width with dark background)
+  - Created sign-up page (`app/sign-up/[[...sign-up]]/page.tsx`):
+    - Same layout as sign-in page
+    - Centered Clerk SignUp component
+  - Updated root page (`app/page.tsx`) to redirect:
+    - Authenticated users to `/editor`
+    - Unauthenticated users to `/sign-in`
+  - Added UserButton to editor navbar for profile and logout
+  - ✓ Build passes without errors (npm run build successful)
+
+- Editor layout integration:
+  - Created `app/editor/layout.tsx`:
+    - Manages sidebar open/close state
+    - Integrates EditorNavbar component with toggle functionality
+    - Integrates ProjectSidebar with overlay and close handlers
+    - Main content area with proper padding for fixed navbar
+  - Created `app/editor/page.tsx`:
+    - Welcome message placeholder
+    - Prompt to create new project
+  - ✓ Editor page accessible at `/editor`
+  - ✓ Build passes (npm run build successful)
+
 ## In Progress
 
-- None yet.
+- None.
 
 ## Next Up
 
-- Integrate navbar and sidebar into editor layout page
+- Add editor canvas/workspace area
+- Connect to backend/database for project storage
 
 ## Open Questions
 
@@ -57,8 +91,12 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Architecture Decisions
 
-- Add decisions that affect the system design or data model.
+- ClerkProvider wraps root layout without custom appearance config (uses defaults with dark theme CSS inheritance from .dark class)
+- Auth middleware uses proxy.ts instead of middleware.ts per Clerk recommendations
+- Root page uses client-side useAuth hook with useRouter for redirects
 
 ## Session Notes
 
-- Add context needed to resume work in the next session.
+- Auth implementation complete per 03-auth.md specification
+- All routes protected except /sign-in and /sign-up
+- CSS variables from globals.css naturally apply to Clerk components through dark theme inheritance

@@ -4,19 +4,12 @@ import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useEffect } from "react";
 
 interface ProjectSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-"use client";
-
-import { Plus, X } from "lucide-react";
-import { Button } from "`@/components/ui/button`";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "`@/components/ui/tabs`";
-import { ScrollArea } from "`@/components/ui/scroll-area`";
-import { useEffect } from "react";
 
 interface ProjectSidebarProps {
   isOpen: boolean;
@@ -89,7 +82,6 @@ export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
       </aside>
     </>
   );
-}
 }
 
 function EmptyState() {
