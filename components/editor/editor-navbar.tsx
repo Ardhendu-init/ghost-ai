@@ -14,7 +14,7 @@ export function EditorNavbar({
   onToggleSidebar,
 }: EditorNavbarProps) {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between h-16 px-4 bg-card border-b border-border">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center h-16 px-4 bg-card border-b border-border">
       <div className="flex items-center">
         <Button
           variant="ghost"
@@ -30,9 +30,11 @@ export function EditorNavbar({
         </Button>
       </div>
 
-      <div className="flex-1" />
+      <span className="absolute left-1/2 -translate-x-1/2 text-sm font-medium text-foreground">
+        Editor Home
+      </span>
 
-      <div className="flex items-center">
+      <div className="ml-auto flex items-center">
         <UserButton />
       </div>
     </nav>
