@@ -1,22 +1,42 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { Plus, X, Trash2, Edit2, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect } from "react";
 
-interface ProjectSidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface Project {
+  id: string;
+  name: string;
+  slug: string;
+  owned: boolean;
 }
 
 interface ProjectSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onNewProject: () => void;
+  onRenameProject: (projectId: string, projectName: string) => void;
+  onDeleteProject: (projectId: string, projectName: string) => void;
 }
 
-export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
+const MOCK_PROJECTS: Project[] = [
+  { id: "1", name: "E-commerce Platform", slug: "ecommerce-platform", owned: true },
+  { id: "2", name: "Social Media Feed", slug: "social-media-feed", owned: true },
+];
+
+const MOCK_SHARED_PROJECTS: Project[] = [
+  { id: "3", name: "Payment System", slug: "payment-system", owned: false },
+];
+
+export function ProjectSidebar({
+  isOpen,
+  onClose,
+  onNewProject,
+  onRenameProject,
+  onDeleteProject,
+}: ProjectSidebarProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -32,7 +52,7 @@ export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm md:hidden"
           onClick={onClose}
         />
       )}
@@ -42,52 +62,142 @@ export function ProjectSidebar({ isOpen, onClose }: ProjectSidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Projects</h2>
-          <Button
-            variant="ghost"
-            size="icon"
+        {/* Header */}
+        <div className="flex items-start justify-between p-4 pb-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1.5">
+              <LayoutGrid className="h-4 w-4 text-brand" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-brand">
+                Projects
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Create a project or jump into an existing room.
+            </p>
+          </div>
+          <button
             onClick={onClose}
+            className="ml-3 mt-0.5 h-7 w-7 shrink-0 flex items-center justify-center rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close sidebar"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Create project button */}
+        <div className="px-4 pb-3">
+          <Button
+            className="w-full bg-brand hover:bg-brand/90 text-background font-medium"
+            onClick={onNewProject}
+          >
+            <Plus className="h-4 w-4" />
+            Create project
           </Button>
         </div>
 
+        {/* Tabs + project list */}
         <ScrollArea className="flex-1">
-          <Tabs defaultValue="my-projects" className="w-full h-full">
-            <div className="px-4 pt-4">
+          <Tabs defaultValue="my-projects" className="w-full">
+            <div className="px-4">
               <TabsList className="w-full grid grid-cols-2 bg-muted/50">
                 <TabsTrigger value="my-projects">My Projects</TabsTrigger>
                 <TabsTrigger value="shared">Shared</TabsTrigger>
               </TabsList>
             </div>
 
-            <TabsContent value="my-projects" className="px-4 py-6">
-              <EmptyState />
+            <TabsContent value="my-projects" className="px-4 py-3">
+              {MOCK_PROJECTS.length > 0 ? (
+                <ProjectList
+                  projects={MOCK_PROJECTS}
+                  onRename={onRenameProject}
+                  onDelete={onDeleteProject}
+                />
+              ) : (
+                <EmptyState />
+              )}
             </TabsContent>
 
-            <TabsContent value="shared" className="px-4 py-6">
-              <EmptyState />
+            <TabsContent value="shared" className="px-4 py-3">
+              {MOCK_SHARED_PROJECTS.length > 0 ? (
+                <ProjectList
+                  projects={MOCK_SHARED_PROJECTS}
+                  onRename={onRenameProject}
+                  onDelete={onDeleteProject}
+                  hideActions
+                />
+              ) : (
+                <EmptyState />
+              )}
             </TabsContent>
           </Tabs>
         </ScrollArea>
-
-        <div className="border-t border-border p-4">
-          <Button className="w-full" variant="default">
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Button>
-        </div>
       </aside>
     </>
+  );
+}
+
+interface ProjectListProps {
+  projects: Project[];
+  onRename: (projectId: string, projectName: string) => void;
+  onDelete: (projectId: string, projectName: string) => void;
+  hideActions?: boolean;
+}
+
+function ProjectList({
+  projects,
+  onRename,
+  onDelete,
+  hideActions,
+}: ProjectListProps) {
+  return (
+    <div className="space-y-2">
+      {projects.map((project) => (
+        <div
+          key={project.id}
+          className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/60 group cursor-pointer border border-border/50 transition-colors"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">
+              {project.name}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+              /editor/{project.slug}
+            </p>
+          </div>
+          {!hideActions && project.owned && (
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRename(project.id, project.name);
+                }}
+                className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Rename project"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(project.id, project.name);
+                }}
+                className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                aria-label="Delete project"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-12">
-      <p className="text-center text-muted-foreground">
+      <p className="text-center text-sm text-muted-foreground">
         No projects yet. Create one to get started.
       </p>
     </div>

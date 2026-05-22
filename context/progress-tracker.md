@@ -76,14 +76,62 @@ Update this file whenever the current phase, active feature, or implementation s
   - ✓ Editor page accessible at `/editor`
   - ✓ Build passes (npm run build successful)
 
+- Project dialogs and sidebar actions (04-project-dialogs.md):
+  - Created `hooks/useProjectDialogs.ts`:
+    - Manages dialog state (create, rename, delete)
+    - Manages form state (name, auto-generated slug)
+    - Provides dialog open/close handlers
+    - Auto-generates URL slug from project name
+  - Created `components/editor/create-project-dialog.tsx`:
+    - Project name input
+    - Live slug preview that updates as user types
+    - Cancel and Create buttons
+  - Created `components/editor/rename-project-dialog.tsx`:
+    - Prefilled project name input
+    - Current project name shown in description
+    - Input auto-focuses on dialog open
+    - Enter key submits the form
+    - Cancel and Rename buttons
+  - Created `components/editor/delete-project-dialog.tsx`:
+    - Destructive confirmation dialog (no input)
+    - Shows project name in description
+    - Cancel and Delete buttons (Delete uses destructive styling)
+  - Updated `components/editor/project-sidebar.tsx`:
+    - Added mock project data (2 owned, 1 shared)
+    - Wired "New Project" button to Create dialog
+    - Added project list items with hover state
+    - Added dropdown menu with Rename/Delete actions
+    - Actions visible only for owned projects
+    - Actions hidden for shared/collaborator projects
+    - Mobile backdrop scrim (visible only on mobile, hidden with `md:hidden`)
+    - Click outside sidebar closes it
+    - Escape key closes sidebar
+  - Updated `components/editor/create-project-dialog.tsx` and sidebar to use dropdown-menu component
+  - Updated `app/editor/page.tsx`:
+    - Shows centered heading: "Create a project or open an existing one"
+    - Shows description: "Start a new architecture workspace, or choose a project from the sidebar."
+    - New Project button with Plus icon wired to Create dialog
+    - Minimal layout, no cards
+  - Updated `app/editor/layout.tsx`:
+    - Integrated all three dialog components
+    - Wired sidebar and home page actions to dialog handlers
+    - Dialog state managed by useProjectDialogs hook
+  - Installed `@base-ui/react/menu` for dropdown-menu component via shadcn
+  - ✓ Build passes without errors (npm run build successful)
+  - ✓ All TypeScript errors fixed
+  - ✓ All ESLint warnings fixed (no errors, no warnings)
+  - ✓ Mock project data shows in sidebar tabs
+  - ✓ Slug preview works in Create dialog
+  - ✓ All dialogs are wired correctly
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Add editor canvas/workspace area
-- Connect to backend/database for project storage
+- Add editor canvas/workspace area (Liveblocks + React Flow)
+- Connect to backend/database for project storage (create project API, database models)
 
 ## Open Questions
 
