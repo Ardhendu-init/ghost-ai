@@ -8,6 +8,9 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient(): PrismaClient {
   const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error("DATABASE_URL environment variable is not set");
+  }
 
   if (url?.startsWith("prisma+postgres://")) {
     return new PrismaClient({
