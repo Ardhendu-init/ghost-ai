@@ -4,11 +4,11 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Phase
 
-- Authentication Integration
+- Database / Backend Foundation
 
 ## Current Goal
 
-- Complete Clerk authentication setup with protected routes and UI
+- Wire project dialogs to real database CRUD via API routes
 
 ## Completed
 
@@ -124,6 +124,19 @@ Update this file whenever the current phase, active feature, or implementation s
   - ✓ Slug preview works in Create dialog
   - ✓ All dialogs are wired correctly
 
+- Prisma database models and client (05-prisma.md):
+  - Created `prisma/models/project.prisma` with `Project` and `ProjectCollaborator` models
+    - `Project`: ownerId (Clerk user), name, optional description, status enum (DRAFT/ARCHIVED), canvasJsonPath, timestamps, indexes on ownerId and createdAt
+    - `ProjectCollaborator`: projectId FK with cascade delete, collaboratorEmail, createdAt, unique constraint on (projectId, collaboratorEmail), indexes on collaboratorEmail and (projectId, createdAt)
+  - Created `lib/prisma.ts` as a cached singleton:
+    - Branches on `DATABASE_URL` prefix: `prisma+postgres://` → Accelerate, otherwise `@prisma/adapter-pg`
+    - Caches client on `globalThis` in development for hot-reload safety
+    - Installed `@prisma/extension-accelerate` for Accelerate support
+  - Migration `20260522154634_init_project_models` applied successfully to hosted Prisma Postgres
+  - Client generated to `app/generated/prisma`
+  - ✓ Build passes (npm run build successful)
+  - Note: Prisma CLI requires Node 22+ (nvm v22.22.3) due to ESM bug in @prisma/dev@7.8.0 on Node 20
+
 ## In Progress
 
 - None.
@@ -131,7 +144,7 @@ Update this file whenever the current phase, active feature, or implementation s
 ## Next Up
 
 - Add editor canvas/workspace area (Liveblocks + React Flow)
-- Connect to backend/database for project storage (create project API, database models)
+- Connect project dialogs to database (create/rename/delete project API routes)
 
 ## Open Questions
 
