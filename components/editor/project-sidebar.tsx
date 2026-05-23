@@ -5,13 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect } from "react";
-
-interface Project {
-  id: string;
-  name: string;
-  slug: string;
-  owned: boolean;
-}
+import type { ProjectData } from "@/lib/projects";
 
 interface ProjectSidebarProps {
   isOpen: boolean;
@@ -19,16 +13,9 @@ interface ProjectSidebarProps {
   onNewProject: () => void;
   onRenameProject: (projectId: string, projectName: string) => void;
   onDeleteProject: (projectId: string, projectName: string) => void;
+  ownedProjects: ProjectData[];
+  sharedProjects: ProjectData[];
 }
-
-const MOCK_PROJECTS: Project[] = [
-  { id: "1", name: "E-commerce Platform", slug: "ecommerce-platform", owned: true },
-  { id: "2", name: "Social Media Feed", slug: "social-media-feed", owned: true },
-];
-
-const MOCK_SHARED_PROJECTS: Project[] = [
-  { id: "3", name: "Payment System", slug: "payment-system", owned: false },
-];
 
 export function ProjectSidebar({
   isOpen,
@@ -36,14 +23,13 @@ export function ProjectSidebar({
   onNewProject,
   onRenameProject,
   onDeleteProject,
+  ownedProjects,
+  sharedProjects,
 }: ProjectSidebarProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
+      if (e.key === "Escape" && isOpen) onClose();
     };
-
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
@@ -106,9 +92,9 @@ export function ProjectSidebar({
             </div>
 
             <TabsContent value="my-projects" className="px-4 py-3">
-              {MOCK_PROJECTS.length > 0 ? (
+              {ownedProjects.length > 0 ? (
                 <ProjectList
-                  projects={MOCK_PROJECTS}
+                  projects={ownedProjects}
                   onRename={onRenameProject}
                   onDelete={onDeleteProject}
                 />
@@ -118,9 +104,9 @@ export function ProjectSidebar({
             </TabsContent>
 
             <TabsContent value="shared" className="px-4 py-3">
-              {MOCK_SHARED_PROJECTS.length > 0 ? (
+              {sharedProjects.length > 0 ? (
                 <ProjectList
-                  projects={MOCK_SHARED_PROJECTS}
+                  projects={sharedProjects}
                   onRename={onRenameProject}
                   onDelete={onDeleteProject}
                   hideActions
@@ -137,18 +123,13 @@ export function ProjectSidebar({
 }
 
 interface ProjectListProps {
-  projects: Project[];
+  projects: ProjectData[];
   onRename: (projectId: string, projectName: string) => void;
   onDelete: (projectId: string, projectName: string) => void;
   hideActions?: boolean;
 }
 
-function ProjectList({
-  projects,
-  onRename,
-  onDelete,
-  hideActions,
-}: ProjectListProps) {
+function ProjectList({ projects, onRename, onDelete, hideActions }: ProjectListProps) {
   return (
     <div className="space-y-2">
       {projects.map((project) => (
@@ -160,11 +141,11 @@ function ProjectList({
             <p className="text-sm font-semibold text-foreground truncate">
               {project.name}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-              /editor/{project.slug}
+            <p className="text-xs text-muted-foreground mt-0.5 truncate font-mono">
+              /editor/{project.id}
             </p>
           </div>
-          {!hideActions && project.owned && (
+          {!hideActions && (
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
               <button
                 onClick={(e) => {

@@ -8,7 +8,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Goal
 
-- Wire project dialogs to real database CRUD via API routes
+- Add editor canvas/workspace area (Liveblocks + React Flow)
 
 ## Completed
 
@@ -137,6 +137,33 @@ Update this file whenever the current phase, active feature, or implementation s
   - ✓ Build passes (npm run build successful)
   - Note: Prisma CLI requires Node 22+ (nvm v22.22.3) due to ESM bug in @prisma/dev@7.8.0 on Node 20
 
+- Project API routes (06-project-apis.md):
+  - Created `app/api/projects/route.ts`:
+    - `GET /api/projects` — returns current user's projects ordered by createdAt desc
+    - `POST /api/projects` — creates project; defaults name to "Untitled Project" if missing
+  - Created `app/api/projects/[projectId]/route.ts`:
+    - `PATCH /api/projects/[projectId]` — renames project; 403 for non-owners
+    - `DELETE /api/projects/[projectId]` — deletes project; 403 for non-owners
+  - All routes return 401 for unauthenticated requests
+  - Owner checked via Clerk userId match before any mutation
+  - ✓ Build passes (npm run build successful)
+
+- Editor home wired to real API (07-wire-editor-home.md):
+  - Created `lib/projects.ts` with `getOwnedProjects` and `getSharedProjects` server helpers (Prisma, select id+name only)
+  - Created `hooks/useProjectActions.ts` (replaces useProjectDialogs.ts):
+    - Manages dialog state and form state
+    - `openCreateDialog`: generates short random suffix; roomId preview = `{slug}-{suffix}`
+    - `submitCreate`: POST /api/projects → navigate to `/editor/{project.id}`
+    - `submitRename`: PATCH /api/projects/[id] → router.refresh()
+    - `submitDelete`: DELETE /api/projects/[id] → redirect to /editor if on active workspace, else refresh
+  - Created `components/editor/editor-client.tsx`: client wrapper with sidebar state, useProjectActions, all dialogs
+  - Converted `app/editor/layout.tsx` to async server component: fetches ownedProjects + sharedProjects, passes to EditorClient
+  - Updated `components/editor/project-sidebar.tsx`: accepts real ProjectData[] props, removed mock data
+  - Updated all three dialog components with `onSubmit` prop wired to hook mutations; create dialog shows Room ID preview
+  - Created `components/editor/new-project-button.tsx`: client island for the home page CTA
+  - Converted `app/editor/page.tsx` to server component; uses NewProjectButton client island
+  - ✓ Build passes (npm run build successful)
+
 ## In Progress
 
 - None.
@@ -144,7 +171,6 @@ Update this file whenever the current phase, active feature, or implementation s
 ## Next Up
 
 - Add editor canvas/workspace area (Liveblocks + React Flow)
-- Connect project dialogs to database (create/rename/delete project API routes)
 
 ## Open Questions
 
