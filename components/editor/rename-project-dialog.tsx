@@ -9,8 +9,9 @@ interface RenameProjectDialogProps {
   isOpen: boolean;
   onClose: () => void;
   projectName?: string;
-  formState: { name: string; slug: string };
+  formState: { name: string; roomId: string };
   onNameChange: (name: string) => void;
+  onSubmit: () => void;
   isLoading: boolean;
 }
 
@@ -20,6 +21,7 @@ export function RenameProjectDialog({
   projectName,
   formState,
   onNameChange,
+  onSubmit,
   isLoading,
 }: RenameProjectDialogProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -32,15 +34,7 @@ export function RenameProjectDialog({
   }, [isOpen]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !isLoading) {
-      handleRename();
-    }
-  };
-
-  const handleRename = () => {
-    if (!formState.name.trim()) return;
-    console.log("Renaming project to:", formState.name);
-    onClose();
+    if (e.key === "Enter" && !isLoading) onSubmit();
   };
 
   return (
@@ -59,14 +53,6 @@ export function RenameProjectDialog({
           onKeyDown={handleKeyDown}
           disabled={isLoading}
         />
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">URL Slug</label>
-          <div className="px-3 py-2 bg-muted rounded-lg border border-input">
-            <p className="text-sm text-muted-foreground font-mono">
-              /editor/{formState.slug || "your-project-slug"}
-            </p>
-          </div>
-        </div>
       </div>
 
       <div className="flex gap-2 justify-end">
@@ -74,10 +60,10 @@ export function RenameProjectDialog({
           Cancel
         </Button>
         <Button
-          onClick={handleRename}
+          onClick={onSubmit}
           disabled={isLoading || !formState.name.trim()}
         >
-          Rename
+          {isLoading ? "Renaming…" : "Rename"}
         </Button>
       </div>
     </DialogPattern>

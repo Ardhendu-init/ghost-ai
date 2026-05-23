@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 interface CreateProjectDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  formState: { name: string; slug: string };
+  formState: { name: string; roomId: string };
   onNameChange: (name: string) => void;
+  onSubmit: () => void;
   isLoading: boolean;
 }
 
@@ -17,14 +18,9 @@ export function CreateProjectDialog({
   onClose,
   formState,
   onNameChange,
+  onSubmit,
   isLoading,
 }: CreateProjectDialogProps) {
-  const handleCreate = () => {
-    if (!formState.name.trim()) return;
-    console.log("Creating project:", formState);
-    onClose();
-  };
-
   return (
     <DialogPattern
       isOpen={isOpen}
@@ -43,14 +39,15 @@ export function CreateProjectDialog({
             value={formState.name}
             onChange={(e) => onNameChange(e.target.value)}
             disabled={isLoading}
+            autoFocus
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">URL Slug</label>
+          <label className="text-sm font-medium">Room ID</label>
           <div className="px-3 py-2 bg-muted rounded-lg border border-input">
             <p className="text-sm text-muted-foreground font-mono">
-              /editor/{formState.slug || "your-project-slug"}
+              {formState.roomId || "your-project-room-id"}
             </p>
           </div>
         </div>
@@ -61,10 +58,10 @@ export function CreateProjectDialog({
           Cancel
         </Button>
         <Button
-          onClick={handleCreate}
-          disabled={isLoading || !formState.name.trim()}
+          onClick={onSubmit}
+          disabled={isLoading}
         >
-          Create
+          {isLoading ? "Creating…" : "Create"}
         </Button>
       </div>
     </DialogPattern>
