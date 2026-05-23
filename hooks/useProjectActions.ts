@@ -34,7 +34,10 @@ export function useProjectActions() {
   const suffixRef = useRef<string>("");
 
   const [dialog, setDialog] = useState<ProjectDialogState>({ type: null });
-  const [formState, setFormState] = useState<FormState>({ name: "", roomId: "" });
+  const [formState, setFormState] = useState<FormState>({
+    name: "",
+    roomId: "",
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const handleNameChange = (name: string) => {
@@ -67,11 +70,14 @@ export function useProjectActions() {
 
   const submitCreate = async () => {
     setIsLoading(true);
+    const name = formState.name.trim() || "Untitled Project";
+    const roomId = formState.roomId || `${slugify(name)}-${suffixRef.current}`;
+
     try {
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formState.name || "Untitled Project" }),
+        body: JSON.stringify({ name, roomId }),
       });
       if (!res.ok) throw new Error("Failed to create project");
       const project = await res.json();
@@ -91,7 +97,7 @@ export function useProjectActions() {
       const res = await fetch(`/api/projects/${dialog.projectId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: formState.name }),
+        body: JSON.stringify({ name: formState.name.trim() }),
       });
       if (!res.ok) throw new Error("Failed to rename project");
       closeDialog();
@@ -108,7 +114,9 @@ export function useProjectActions() {
     const targetId = dialog.projectId;
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/projects/${targetId}`, { method: "DELETE" });
+      const res = await fetch(`/api/projects/${targetId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) throw new Error("Failed to delete project");
       closeDialog();
       if (pathname === `/editor/${targetId}`) {
