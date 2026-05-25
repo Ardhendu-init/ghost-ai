@@ -9,9 +9,19 @@ interface WorkspaceShellProps {
   projectId: string;
   projectName: string;
   isOwner: boolean;
+  ownerName: string;
+  ownerEmail: string;
+  ownerAvatarUrl: string | null;
 }
 
-export function WorkspaceShell({ projectId, projectName, isOwner }: WorkspaceShellProps) {
+export function WorkspaceShell({
+  projectId,
+  projectName,
+  isOwner,
+  ownerName,
+  ownerEmail,
+  ownerAvatarUrl,
+}: WorkspaceShellProps) {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
 
@@ -37,6 +47,8 @@ export function WorkspaceShell({ projectId, projectName, isOwner }: WorkspaceShe
             size="sm"
             className="h-8 gap-1.5"
             onClick={() => setIsAiOpen(!isAiOpen)}
+            aria-pressed={isAiOpen}
+            aria-controls="ai-panel"
           >
             <Bot className="h-3.5 w-3.5" />
             AI
@@ -55,7 +67,10 @@ export function WorkspaceShell({ projectId, projectName, isOwner }: WorkspaceShe
 
         {/* AI sidebar placeholder */}
         {isAiOpen && (
-          <aside className="w-80 shrink-0 border-l border-border bg-card flex items-center justify-center">
+          <aside
+            id="ai-panel"
+            className="w-80 shrink-0 border-l border-border bg-card flex items-center justify-center"
+          >
             <p className="text-sm text-muted-foreground select-none">
               AI chat coming soon
             </p>
@@ -68,6 +83,9 @@ export function WorkspaceShell({ projectId, projectName, isOwner }: WorkspaceShe
         onOpenChange={setIsShareOpen}
         projectId={projectId}
         isOwner={isOwner}
+        ownerName={ownerName}
+        ownerEmail={ownerEmail}
+        ownerAvatarUrl={ownerAvatarUrl}
       />
     </div>
   );

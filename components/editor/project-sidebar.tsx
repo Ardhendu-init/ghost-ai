@@ -154,7 +154,7 @@ function ProjectList({
           >
             <Link href={`/editor/${project.id}`} className="flex-1 min-w-0">
               <p
-                className={`text-sm font-semibold truncate ${isActive ? "text-foreground" : "text-foreground"}`}
+                className={`text-sm font-semibold truncate ${isActive ? "text-foreground" : "text-foreground/60"}`}
               >
                 {project.name}
               </p>

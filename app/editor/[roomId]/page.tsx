@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { checkProjectAccess } from "@/lib/project-access";
 import { AccessDenied } from "@/components/editor/access-denied";
 import { WorkspaceShell } from "@/components/editor/workspace-shell";
@@ -21,11 +21,22 @@ export default async function WorkspacePage({ params }: Props) {
     );
   }
 
+  const client = await clerkClient();
+  const ownerUser = await client.users.getUser(project.ownerId);
+  const ownerEmail =
+    ownerUser.emailAddresses.find((e) => e.id === ownerUser.primaryEmailAddressId)
+      ?.emailAddress ?? "";
+  const ownerName =
+    [ownerUser.firstName, ownerUser.lastName].filter(Boolean).join(" ") || ownerEmail;
+
   return (
     <WorkspaceShell
       projectId={project.id}
       projectName={project.name}
       isOwner={project.ownerId === userId}
+      ownerName={ownerName}
+      ownerEmail={ownerEmail}
+      ownerAvatarUrl={ownerUser.imageUrl ?? null}
     />
   );
 }

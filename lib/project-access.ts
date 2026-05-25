@@ -4,7 +4,24 @@ import { prisma } from "./prisma";
 export async function getCurrentIdentity() {
   const { userId } = await auth();
   const user = await currentUser();
-  const email = user?.emailAddresses?.[0]?.emailAddress ?? "";
+
+  let email = "";
+  if (user) {
+    const primary = user.emailAddresses.find(
+      (e) => e.id === user.primaryEmailAddressId
+    )?.emailAddress;
+    if (primary) {
+      email = primary.trim().toLowerCase();
+    } else {
+      const verified = user.emailAddresses.find(
+        (e) => e.verification?.status === "verified"
+      )?.emailAddress;
+      email = (verified ?? user.emailAddresses[0]?.emailAddress ?? "")
+        .trim()
+        .toLowerCase();
+    }
+  }
+
   return { userId, email };
 }
 
