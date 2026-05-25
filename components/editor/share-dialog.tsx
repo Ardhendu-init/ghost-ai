@@ -253,6 +253,11 @@ export function ShareDialog({
                       className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => handleRemove(c.email)}
                       disabled={removingEmail === c.email}
+                      aria-label={
+                        removingEmail === c.email
+                          ? `Removing ${c.email}`
+                          : `Remove collaborator ${c.email}`
+                      }
                     >
                       {removingEmail === c.email ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />

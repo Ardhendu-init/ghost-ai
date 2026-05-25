@@ -21,13 +21,22 @@ export default async function WorkspacePage({ params }: Props) {
     );
   }
 
-  const client = await clerkClient();
-  const ownerUser = await client.users.getUser(project.ownerId);
-  const ownerEmail =
-    ownerUser.emailAddresses.find((e) => e.id === ownerUser.primaryEmailAddressId)
-      ?.emailAddress ?? "";
-  const ownerName =
-    [ownerUser.firstName, ownerUser.lastName].filter(Boolean).join(" ") || ownerEmail;
+  let ownerEmail = "";
+  let ownerName = "";
+  let ownerAvatarUrl: string | null = null;
+
+  try {
+    const client = await clerkClient();
+    const ownerUser = await client.users.getUser(project.ownerId);
+    ownerEmail =
+      ownerUser.emailAddresses.find((e) => e.id === ownerUser.primaryEmailAddressId)
+        ?.emailAddress ?? "";
+    ownerName =
+      [ownerUser.firstName, ownerUser.lastName].filter(Boolean).join(" ") || ownerEmail;
+    ownerAvatarUrl = ownerUser.imageUrl ?? null;
+  } catch {
+    // Owner account may have been deleted from Clerk; render with empty fallbacks
+  }
 
   return (
     <WorkspaceShell
@@ -36,7 +45,7 @@ export default async function WorkspacePage({ params }: Props) {
       isOwner={project.ownerId === userId}
       ownerName={ownerName}
       ownerEmail={ownerEmail}
-      ownerAvatarUrl={ownerUser.imageUrl ?? null}
+      ownerAvatarUrl={ownerAvatarUrl}
     />
   );
 }
