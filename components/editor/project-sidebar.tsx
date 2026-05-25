@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import type { ProjectData } from "@/lib/projects";
 
 interface ProjectSidebarProps {
@@ -129,48 +131,61 @@ interface ProjectListProps {
   hideActions?: boolean;
 }
 
-function ProjectList({ projects, onRename, onDelete, hideActions }: ProjectListProps) {
+function ProjectList({
+  projects,
+  onRename,
+  onDelete,
+  hideActions,
+}: ProjectListProps) {
+  const pathname = usePathname();
+
   return (
     <div className="space-y-2">
-      {projects.map((project) => (
-        <div
-          key={project.id}
-          className="flex items-center justify-between p-3 rounded-xl bg-muted/30 hover:bg-muted/60 group cursor-pointer border border-border/50 transition-colors"
-        >
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">
-              {project.name}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate font-mono">
-              /editor/{project.id}
-            </p>
+      {projects.map((project) => {
+        const isActive = pathname === `/editor/${project.id}`;
+        return (
+          <div
+            key={project.id}
+            className={`flex items-center justify-between p-3 rounded-xl group border transition-colors ${
+              isActive
+                ? "bg-muted border-border"
+                : "bg-muted/30 hover:bg-muted/60 border-border/50"
+            }`}
+          >
+            <Link href={`/editor/${project.id}`} className="flex-1 min-w-0">
+              <p
+                className={`text-sm font-semibold truncate ${isActive ? "text-foreground" : "text-foreground"}`}
+              >
+                {project.name}
+              </p>
+            </Link>
+            {!hideActions && (
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRename(project.id, project.name);
+                  }}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Rename project"
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(project.id, project.name);
+                  }}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                  aria-label="Delete project"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </div>
-          {!hideActions && (
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRename(project.id, project.name);
-                }}
-                className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Rename project"
-              >
-                <Edit2 className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(project.id, project.name);
-                }}
-                className="h-7 w-7 inline-flex items-center justify-center rounded-lg hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
-                aria-label="Delete project"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

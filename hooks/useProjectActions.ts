@@ -83,6 +83,7 @@ export function useProjectActions() {
       const project = await res.json();
       closeDialog();
       router.push(`/editor/${project.id}`);
+      router.refresh();
     } catch (err) {
       console.error(err);
     } finally {
