@@ -164,6 +164,45 @@ Update this file whenever the current phase, active feature, or implementation s
   - Converted `app/editor/page.tsx` to server component; uses NewProjectButton client island
   - ✓ Build passes (npm run build successful)
 
+- Editor workspace shell (08-editor-workspace-shell.md):
+  - Created `lib/project-access.ts` with `getCurrentIdentity` and `checkProjectAccess` helpers
+    - `getCurrentIdentity`: returns Clerk `userId` + primary email
+    - `checkProjectAccess`: verifies project ownership or collaborator membership
+  - Created `components/editor/access-denied.tsx`:
+    - Centered layout with lock icon, short message, and "Back to editor" link
+    - Used for missing projects or unauthorized access
+  - Created `app/editor/[roomId]/page.tsx` (server component):
+    - Unauthenticated users redirect to `/sign-in`
+    - Missing or unauthorized projects render `AccessDenied`
+    - Authorized users render `WorkspaceShell` with project context
+  - Created `components/editor/workspace-shell.tsx` (client component):
+    - Workspace toolbar: project name, Share button (placeholder), AI sidebar toggle
+    - Canvas placeholder area (dark `bg-background`)
+    - AI sidebar placeholder (toggleable, w-80)
+  - Updated `components/editor/project-sidebar.tsx`:
+    - Project items are now `Link` components navigating to `/editor/{id}`
+    - Active project highlighted via `usePathname()` comparison
+  - ✓ Build passes (npm run build successful)
+  - ✓ No TypeScript errors
+
+- Share dialog (09-share-dialog.md):
+  - Created `app/api/projects/[projectId]/collaborators/route.ts`:
+    - `GET` — lists collaborators; accessible to owners and collaborators; enriched with Clerk display name + avatar
+    - `POST` — invites collaborator by email; owner-only; 409 on duplicate
+    - `DELETE` — removes collaborator by email (body); owner-only
+  - Created `components/editor/share-dialog.tsx`:
+    - Owner view: email invite input (Enter or button), collaborator list with remove buttons, copy-link row
+    - Collaborator view: read-only collaborator list + copy-link row
+    - Clerk name/avatar enrichment with email fallback
+    - Temporary "Copied!" feedback on copy button
+  - Updated `components/editor/workspace-shell.tsx`:
+    - Share button opens ShareDialog
+    - Accepts `isOwner` prop and passes it through to dialog
+  - Updated `app/editor/[roomId]/page.tsx`:
+    - Computes `isOwner` from `project.ownerId === userId` and passes to WorkspaceShell
+  - ✓ Build passes (npm run build successful)
+  - ✓ No TypeScript errors
+
 ## In Progress
 
 - None.
