@@ -203,13 +203,54 @@ Update this file whenever the current phase, active feature, or implementation s
   - ✓ Build passes (npm run build successful)
   - ✓ No TypeScript errors
 
+- Liveblocks realtime infrastructure setup (10-liveblocks-setup.md):
+  - Installed `@liveblocks/node` (server SDK)
+  - Updated `liveblocks.config.ts`: Presence (`cursor: {x,y}|null`, `isThinking: boolean`), UserMeta (`id`, `info: { name, avatar, color }`)
+  - Created `lib/liveblocks.ts`: lazy-cached Liveblocks node client via `getLiveblocks()` + `userIdToColor()` deterministic color helper (8-color palette, hash of userId)
+  - Created `app/api/liveblocks-auth/route.ts` (POST):
+    - Requires Clerk authentication (401 if unauthenticated)
+    - Verifies project access via `checkProjectAccess` (403 for unauthorized)
+    - Ensures room exists via `getOrCreateRoom` (private by default)
+    - Returns session token with user name, avatar, and deterministic cursor color
+  - `LIVEBLOCKS_SECRET_KEY` placeholder added to `.env.local` — must be filled in from Liveblocks dashboard
+  - ✓ Build passes (`npm run build` successful)
+
+- Base canvas (11-base-canvas.md):
+  - Installed `react-error-boundary`
+  - Created `types/canvas.ts`: `NodeData` (label, color?, shape?), `CanvasNode` (Node<NodeData, "canvasNode">), `CanvasEdge` (Edge<{}, "canvasEdge">)
+  - Created `components/editor/flow-canvas.tsx`:
+    - Uses `useLiveblocksFlow` with `suspense: true` and empty initial nodes/edges
+    - Renders `ReactFlow` with `ConnectionMode.Loose`, `fitView`, `MiniMap`, dot-pattern `Background`, and `Cursors`
+    - Imports all required CSS: `@xyflow/react`, `@liveblocks/react-ui`, `@liveblocks/react-flow`
+  - Created `components/editor/canvas-wrapper.tsx`:
+    - `LiveblocksProvider` pointing at `/api/liveblocks-auth`
+    - `RoomProvider` with `initialPresence: { cursor: null, isThinking: false }`
+    - `ErrorBoundary` wrapping a `ClientSideSuspense` loading state
+    - Renders `FlowCanvas` when connected
+  - Updated `components/editor/workspace-shell.tsx`: canvas placeholder replaced with `<CanvasWrapper roomId={projectId} />`
+  - ✓ Build passes (`npm run build` successful)
+
+- Shape panel (12-shape-panel.md):
+  - Updated `types/canvas.ts`: added `ShapeType` union (rectangle, diamond, circle, pill, cylinder, hexagon), `DragPayload` (shape, width, height)
+  - Created `components/editor/canvas-node.tsx`: basic renderer for `canvasNode` type — bordered rectangle with centered label, handles on all 4 sides (top/right/bottom/left as source, compatible with `ConnectionMode.Loose`), border highlights when selected
+  - Created `components/editor/shape-panel.tsx`: floating pill toolbar at canvas bottom-center — lucide icons per shape, `draggable` buttons with `onDragStart` setting `application/canvas-shape` payload (shape + default dimensions); sensible defaults: rectangle 160×80, diamond 120×120, circle 96×96, pill 160×64, cylinder 100×120, hexagon 110×110
+  - Updated `components/editor/flow-canvas.tsx`:
+    - Typed `useLiveblocksFlow<CanvasNode, CanvasEdge>` to fix inference
+    - Added `nodeTypes = { canvasNode: CanvasNodeComponent }` (module-level stable ref)
+    - Captures ReactFlow instance via `onInit` to access `screenToFlowPosition` (avoids `useReactFlow` context limitation)
+    - `onDragOver`: prevents default, sets `dropEffect = "move"`
+    - `onDrop`: reads payload, converts screen → canvas position, centers node on drop point, calls `onNodesChange([{ type: "add", item }])`
+    - Node IDs generated as `{shape}-{timestamp}-{counter}`
+    - `ShapePanel` rendered via React Flow's `<Panel position="bottom-center">`
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Add editor canvas/workspace area (Liveblocks + React Flow)
+- Canvas interactions and persistence
 
 ## Open Questions
 

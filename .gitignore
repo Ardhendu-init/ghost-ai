@@ -13,6 +13,7 @@
 
 #issues/coverage
 /context/issues
+/context/knowledge
 # testing
 /coverage
 
