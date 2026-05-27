@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Share2, Bot } from "lucide-react";
+import { useRef, useState } from "react";
+import { Share2, Bot, LayoutTemplate } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ShareDialog } from "@/components/editor/share-dialog";
 import { CanvasWrapper } from "@/components/editor/canvas-wrapper";
+import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
+import type { FlowCanvasHandle } from "@/components/editor/flow-canvas";
+import type { CanvasTemplate } from "@/components/editor/starter-templates";
 
 interface WorkspaceShellProps {
   projectId: string;
@@ -25,6 +28,12 @@ export function WorkspaceShell({
 }: WorkspaceShellProps) {
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const canvasRef = useRef<FlowCanvasHandle>(null);
+
+  function handleImportTemplate(template: CanvasTemplate) {
+    canvasRef.current?.loadTemplate(template);
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -34,6 +43,15 @@ export function WorkspaceShell({
           {projectName}
         </span>
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={() => setIsTemplatesOpen(true)}
+          >
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            Templates
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -61,7 +79,7 @@ export function WorkspaceShell({
       <div className="flex-1 flex overflow-hidden">
         {/* Canvas */}
         <div className="flex-1 bg-background overflow-hidden">
-          <CanvasWrapper roomId={projectId} />
+          <CanvasWrapper roomId={projectId} canvasRef={canvasRef} />
         </div>
 
         {/* AI sidebar placeholder */}
@@ -85,6 +103,12 @@ export function WorkspaceShell({
         ownerName={ownerName}
         ownerEmail={ownerEmail}
         ownerAvatarUrl={ownerAvatarUrl}
+      />
+
+      <StarterTemplatesModal
+        open={isTemplatesOpen}
+        onOpenChange={setIsTemplatesOpen}
+        onImport={handleImportTemplate}
       />
     </div>
   );
