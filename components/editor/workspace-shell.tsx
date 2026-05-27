@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Share2, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ShareDialog } from "@/components/editor/share-dialog";
+import { CanvasWrapper } from "@/components/editor/canvas-wrapper";
 
 interface WorkspaceShellProps {
   projectId: string;
@@ -58,11 +59,9 @@ export function WorkspaceShell({
 
       {/* Content row */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Canvas placeholder */}
-        <div className="flex-1 bg-background flex items-center justify-center">
-          <p className="text-sm text-muted-foreground select-none">
-            Canvas coming soon
-          </p>
+        {/* Canvas */}
+        <div className="flex-1 bg-background overflow-hidden">
+          <CanvasWrapper roomId={projectId} />
         </div>
 
         {/* AI sidebar placeholder */}
