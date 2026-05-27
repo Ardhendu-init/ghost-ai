@@ -9,9 +9,17 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-  const body = await request.json();
-  const room = body?.room as string | undefined;
+  const room =
+    typeof (body as { room?: unknown })?.room === "string"
+      ? (body as { room: string }).room.trim()
+      : "";
 
   if (!room) {
     return NextResponse.json({ error: "Room ID required" }, { status: 400 });

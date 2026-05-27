@@ -21,11 +21,11 @@ import type { CanvasNode, CanvasEdge, DragPayload } from "@/types/canvas";
 
 const nodeTypes = { canvasNode: CanvasNodeComponent };
 
-let nodeCounter = 0;
-
 export function FlowCanvas() {
-  const [rfInstance, setRfInstance] =
-    useState<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null);
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance<
+    CanvasNode,
+    CanvasEdge
+  > | null>(null);
 
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
     useLiveblocksFlow<CanvasNode, CanvasEdge>({
@@ -47,13 +47,27 @@ export function FlowCanvas() {
       const raw = e.dataTransfer.getData("application/canvas-shape");
       if (!raw) return;
 
-      const payload = JSON.parse(raw) as DragPayload;
+      let payload: DragPayload;
+      try {
+        payload = JSON.parse(raw) as DragPayload;
+      } catch {
+        return;
+      }
+      if (
+        !payload?.shape ||
+        !Number.isFinite(payload.width) ||
+        !Number.isFinite(payload.height) ||
+        payload.width <= 0 ||
+        payload.height <= 0
+      ) {
+        return;
+      }
       const position = rfInstance.screenToFlowPosition({
         x: e.clientX,
         y: e.clientY,
       });
 
-      const id = `${payload.shape}-${Date.now()}-${++nodeCounter}`;
+      const id = `${payload.shape}-${crypto.randomUUID()}`;
       const newNode: CanvasNode = {
         id,
         type: "canvasNode",
@@ -67,15 +81,11 @@ export function FlowCanvas() {
 
       onNodesChange([{ type: "add", item: newNode }]);
     },
-    [rfInstance, onNodesChange]
+    [rfInstance, onNodesChange],
   );
 
   return (
-    <div
-      className="w-full h-full"
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-    >
+    <div className="w-full h-full" onDragOver={onDragOver} onDrop={onDrop}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
