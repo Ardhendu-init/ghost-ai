@@ -21,12 +21,15 @@ import {
 } from "@xyflow/react";
 import type { ReactFlowInstance } from "@xyflow/react";
 import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow";
-import { useUndo, useRedo, useCanUndo, useCanRedo } from "@liveblocks/react";
+import { useUndo, useRedo, useCanUndo, useCanRedo, useMyPresence } from "@liveblocks/react";
 import { CanvasNodeComponent } from "./canvas-node";
 import { CanvasEdgeComponent } from "./canvas-edge";
 import { ShapePanel } from "./shape-panel";
 import { CanvasControlBar } from "./canvas-control-bar";
+import { PresenceAvatars } from "./presence-avatars";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useCanvasAutoSave } from "@/hooks/useCanvasAutoSave";
+import type { SaveStatus } from "@/hooks/useCanvasAutoSave";
 import type { CanvasNode, CanvasEdge, DragPayload } from "@/types/canvas";
 import type { CanvasTemplate } from "./starter-templates";
 import {
@@ -69,21 +72,45 @@ function nodesBounds(
 export interface FlowCanvasHandle {
   loadTemplate: (template: CanvasTemplate) => void;
   clearCanvas: () => void;
+  saveNow: () => void;
 }
 
-export const FlowCanvas = forwardRef<FlowCanvasHandle>(
-  function FlowCanvas(_, ref) {
+interface FlowCanvasProps {
+  projectId: string;
+  onSaveStatusChange?: (status: SaveStatus) => void;
+}
+
+export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(
+  function FlowCanvas({ projectId, onSaveStatusChange }, ref) {
     const [rfInstance, setRfInstance] = useState<ReactFlowInstance<
       CanvasNode,
       CanvasEdge
     > | null>(null);
+    const rfInstanceRef = useRef<ReactFlowInstance<CanvasNode, CanvasEdge> | null>(null);
 
     const undo = useUndo();
     const redo = useRedo();
     const canUndo = useCanUndo();
     const canRedo = useCanRedo();
+    const [, updateMyPresence] = useMyPresence();
 
     useKeyboardShortcuts({ rfInstance, undo, redo });
+
+    const onCanvasMouseMove = useCallback(
+      (e: React.MouseEvent) => {
+        if (!rfInstance) return;
+        const pos = rfInstance.screenToFlowPosition({
+          x: e.clientX,
+          y: e.clientY,
+        });
+        updateMyPresence({ cursor: pos });
+      },
+      [rfInstance, updateMyPresence],
+    );
+
+    const onCanvasMouseLeave = useCallback(() => {
+      updateMyPresence({ cursor: null });
+    }, [updateMyPresence]);
 
     const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
       useLiveblocksFlow<CanvasNode, CanvasEdge>({
@@ -91,6 +118,61 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle>(
         nodes: { initial: [] },
         edges: { initial: [] },
       });
+
+    // Delete / Backspace — remove selected nodes and edges via Liveblocks
+    useEffect(() => {
+      function handleDelete(e: KeyboardEvent) {
+        if (e.key !== "Delete" && e.key !== "Backspace") return;
+        const target = e.target as HTMLElement;
+        const tag = target.tagName.toLowerCase();
+        if (tag === "input" || tag === "textarea" || target.isContentEditable) return;
+
+        const selectedNodes = nodes.filter((n) => n.selected);
+        const selectedEdges = edges.filter((ed) => ed.selected);
+        if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+
+        e.preventDefault();
+        onDelete({ nodes: selectedNodes, edges: selectedEdges });
+      }
+
+      document.addEventListener("keydown", handleDelete);
+      return () => document.removeEventListener("keydown", handleDelete);
+    }, [nodes, edges, onDelete]);
+
+    // Autosave
+    const { save: saveNowFn } = useCanvasAutoSave(projectId, nodes, edges, onSaveStatusChange);
+
+    // Load saved canvas on initial mount if the Liveblocks room is empty.
+    // useLiveblocksFlow with suspense:true resolves before the first render,
+    // so nodes/edges here already reflect true room state.
+    const nodesRef = useRef(nodes);
+    const edgesRef = useRef(edges);
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+
+    useEffect(() => {
+      if (nodesRef.current.length > 0 || edgesRef.current.length > 0) return;
+
+      fetch(`/api/projects/${projectId}/canvas`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (!data?.canvas) return;
+          const { nodes: savedNodes, edges: savedEdges } = data.canvas as {
+            nodes: CanvasNode[];
+            edges: CanvasEdge[];
+          };
+          if (!savedNodes?.length) return;
+          onNodesChange(savedNodes.map((item) => ({ type: "add" as const, item })));
+          if (savedEdges?.length) {
+            onEdgesChange(savedEdges.map((item) => ({ type: "add" as const, item })));
+          }
+          setTimeout(() => {
+            rfInstanceRef.current?.fitView({ padding: 0.15, duration: 300 });
+          }, 50);
+        })
+        .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const updateLabel = useCallback(
       (id: string, label: string) => {
@@ -210,9 +292,11 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle>(
     // Keep latest closures in refs so the imperative handle stays stable
     const loadTemplateFnRef = useRef(loadTemplate);
     const clearCanvasFnRef = useRef(clearCanvas);
+    const saveNowFnRef = useRef(saveNowFn);
     useEffect(() => {
       loadTemplateFnRef.current = loadTemplate;
       clearCanvasFnRef.current = clearCanvas;
+      saveNowFnRef.current = saveNowFn;
     });
 
     useImperativeHandle(
@@ -221,6 +305,7 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle>(
         loadTemplate: (template: CanvasTemplate) =>
           loadTemplateFnRef.current(template),
         clearCanvas: () => clearCanvasFnRef.current(),
+        saveNow: () => saveNowFnRef.current(),
       }),
       [],
     );
@@ -283,6 +368,8 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle>(
               className="w-full h-full"
               onDragOver={onDragOver}
               onDrop={onDrop}
+              onMouseMove={onCanvasMouseMove}
+              onMouseLeave={onCanvasMouseLeave}
             >
               <ReactFlow
                 nodes={nodes}
@@ -295,11 +382,23 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle>(
                 edgeTypes={edgeTypes}
                 defaultEdgeOptions={defaultEdgeOptions}
                 connectionMode={ConnectionMode.Loose}
-                fitView
-                onInit={setRfInstance}
+                deleteKeyCode={null}
+                onInit={(instance) => {
+                  setRfInstance(instance);
+                  rfInstanceRef.current = instance;
+                  // Only fit on init if nodes already exist in the room.
+                  // Skipping fitView here prevents auto-zoom when the first
+                  // node is dropped onto an empty canvas.
+                  if (nodesRef.current.length > 0) {
+                    instance.fitView({ padding: 0.15, duration: 0 });
+                  }
+                }}
               >
                 <Background variant={BackgroundVariant.Dots} />
                 <Cursors />
+                <Panel position="top-right">
+                  <PresenceAvatars />
+                </Panel>
                 <Panel position="bottom-left">
                   <CanvasControlBar
                     rfInstance={rfInstance}

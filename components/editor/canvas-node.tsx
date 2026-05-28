@@ -133,7 +133,7 @@ function NodeLabel({
 
   return (
     <div
-      className="absolute inset-0 flex items-center justify-center z-10 cursor-text"
+      className="absolute inset-0 flex items-center justify-center cursor-text"
       onDoubleClick={startEdit}
     >
       {isEditing ? (

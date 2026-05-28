@@ -11,7 +11,9 @@
       "Read(//usr/local/bin/**)",
       "Read(//opt/homebrew/bin/**)",
       "Bash(node -e ' *)",
-      "Bash(cp \"/Users/ardhendu/Desktop/My Projects/ghost-ai/proxy.ts\" \"/Users/ardhendu/Desktop/My Projects/ghost-ai/middleware.ts\" && echo \"Copied\")"
+      "Bash(cp \"/Users/ardhendu/Desktop/My Projects/ghost-ai/proxy.ts\" \"/Users/ardhendu/Desktop/My Projects/ghost-ai/middleware.ts\" && echo \"Copied\")",
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ],
     "additionalDirectories": [
       "/Users/ardhendu/Desktop/My Projects/ghost-ai"

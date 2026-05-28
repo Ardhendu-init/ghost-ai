@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 interface EditorNavbarProps {
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  isWorkspace?: boolean;
 }
 
 export function EditorNavbar({
   isSidebarOpen,
   onToggleSidebar,
+  isWorkspace = false,
 }: EditorNavbarProps) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center h-16 px-4 bg-card border-b border-border">
@@ -34,9 +36,11 @@ export function EditorNavbar({
         Editor Home
       </span>
 
-      <div className="ml-auto flex items-center">
-        <UserButton />
-      </div>
+      {!isWorkspace && (
+        <div className="ml-auto flex items-center">
+          <UserButton />
+        </div>
+      )}
     </nav>
   );
 }
