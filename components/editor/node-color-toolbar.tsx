@@ -50,6 +50,8 @@ function Swatch({
   return (
     <button
       type="button"
+      aria-label={`Set node color ${bg}`}
+      title={`Set node color ${bg}`}
       style={{
         width: 18,
         height: 18,
@@ -59,9 +61,18 @@ function Swatch({
         boxShadow: isActive ? `0 0 0 1px ${text}60` : "none",
         cursor: "pointer",
         padding: 0,
-        outline: "none",
+        outline: "2px solid transparent",
+        outlineOffset: 2,
         flexShrink: 0,
         transition: "border-color 0.12s, box-shadow 0.12s",
+      }}
+      onFocus={(e) => {
+        const el = e.currentTarget;
+        el.style.boxShadow = `0 0 0 2px ${text}AA`;
+      }}
+      onBlur={(e) => {
+        const el = e.currentTarget;
+        el.style.boxShadow = isActive ? `0 0 0 1px ${text}60` : "none";
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget;
