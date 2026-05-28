@@ -32,8 +32,32 @@ const nodeTypes = { canvasNode: CanvasNodeComponent };
 const edgeTypes = { canvasEdge: CanvasEdgeComponent };
 const defaultEdgeOptions = { type: "canvasEdge" };
 
+const IMPORT_GAP = 80;
+const DEFAULT_NODE_W = 120;
+const DEFAULT_NODE_H = 60;
+
+function nodesBounds(
+  nodes: readonly CanvasNode[],
+): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  if (nodes.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const node of nodes) {
+    const w = (node.style?.width as number | undefined) ?? DEFAULT_NODE_W;
+    const h = (node.style?.height as number | undefined) ?? DEFAULT_NODE_H;
+    minX = Math.min(minX, node.position.x);
+    minY = Math.min(minY, node.position.y);
+    maxX = Math.max(maxX, node.position.x + w);
+    maxY = Math.max(maxY, node.position.y + h);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 export interface FlowCanvasHandle {
   loadTemplate: (template: CanvasTemplate) => void;
+  clearCanvas: () => void;
 }
 
 export const FlowCanvas = forwardRef<FlowCanvasHandle>(function FlowCanvas(_, ref) {
@@ -103,31 +127,76 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle>(function FlowCanvas(_, re
 
   const loadTemplate = useCallback(
     (template: CanvasTemplate) => {
-      // Clear existing canvas first, then add template in a separate tick
-      // so Liveblocks commits the removes before processing the adds.
-      if (nodes.length > 0) {
-        onNodesChange(nodes.map((node) => ({ type: "remove" as const, id: node.id })));
+      if (template.nodes.length === 0) return;
+
+      const incoming = nodesBounds(template.nodes);
+      const existing = nodesBounds(nodes);
+      let dx = 0;
+      let dy = 0;
+      if (existing && incoming) {
+        dx = existing.maxX + IMPORT_GAP - incoming.minX;
+        dy = existing.minY - incoming.minY;
       }
-      if (edges.length > 0) {
-        onEdgesChange(edges.map((edge) => ({ type: "remove" as const, id: edge.id })));
+
+      const importTag = crypto.randomUUID().slice(0, 8);
+      const idMap = new Map<string, string>();
+
+      const newNodes: CanvasNode[] = template.nodes.map((node) => {
+        const newId = `${template.id}-${importTag}-${node.id}`;
+        idMap.set(node.id, newId);
+        return {
+          ...node,
+          id: newId,
+          position: { x: node.position.x + dx, y: node.position.y + dy },
+          selected: true,
+        };
+      });
+
+      const newEdges: CanvasEdge[] = template.edges.map((edge) => ({
+        ...edge,
+        id: `${template.id}-${importTag}-${edge.id}`,
+        source: idMap.get(edge.source) ?? edge.source,
+        target: idMap.get(edge.target) ?? edge.target,
+      }));
+
+      const deselectChanges = nodes
+        .filter((node) => node.selected)
+        .map((node) => ({ type: "select" as const, id: node.id, selected: false }));
+
+      onNodesChange([
+        ...deselectChanges,
+        ...newNodes.map((item) => ({ type: "add" as const, item })),
+      ]);
+      if (newEdges.length > 0) {
+        onEdgesChange(newEdges.map((item) => ({ type: "add" as const, item })));
       }
+
+      const focusIds = newNodes.map((node) => ({ id: node.id }));
       setTimeout(() => {
-        onNodesChange(template.nodes.map((node) => ({ type: "add" as const, item: node })));
-        onEdgesChange(template.edges.map((edge) => ({ type: "add" as const, item: edge })));
-        setTimeout(() => rfInstance?.fitView({ duration: 300 }), 50);
+        rfInstance?.fitView({ nodes: focusIds, padding: 0.2, duration: 300 });
       }, 50);
     },
-    [nodes, edges, onNodesChange, onEdgesChange, rfInstance],
+    [nodes, onNodesChange, onEdgesChange, rfInstance],
   );
 
-  // Keep the latest loadTemplate in a ref so the handle stays stable
+  const clearCanvas = useCallback(() => {
+    if (nodes.length === 0 && edges.length === 0) return;
+    // Liveblocks ignores `type: "remove"` node/edge changes — deletes must
+    // go through onDelete, which mutates storage directly.
+    onDelete({ nodes, edges });
+  }, [nodes, edges, onDelete]);
+
+  // Keep latest closures in refs so the imperative handle stays stable
   const loadTemplateFnRef = useRef(loadTemplate);
+  const clearCanvasFnRef = useRef(clearCanvas);
   useEffect(() => {
     loadTemplateFnRef.current = loadTemplate;
+    clearCanvasFnRef.current = clearCanvas;
   });
 
   useImperativeHandle(ref, () => ({
     loadTemplate: (template: CanvasTemplate) => loadTemplateFnRef.current(template),
+    clearCanvas: () => clearCanvasFnRef.current(),
   }), []);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -208,6 +277,8 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle>(function FlowCanvas(_, re
                   canRedo={canRedo}
                   onUndo={undo}
                   onRedo={redo}
+                  onClear={clearCanvas}
+                  canClear={nodes.length > 0 || edges.length > 0}
                 />
               </Panel>
               <Panel position="bottom-center">

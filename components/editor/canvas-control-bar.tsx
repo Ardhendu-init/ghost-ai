@@ -1,6 +1,6 @@
 "use client";
 
-import { ZoomIn, ZoomOut, Maximize2, Undo2, Redo2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Trash2 } from "lucide-react";
 
 interface ZoomControls {
   zoomIn: (opts?: { duration?: number }) => void;
@@ -14,6 +14,8 @@ interface CanvasControlBarProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
+  onClear: () => void;
+  canClear: boolean;
 }
 
 function ControlButton({
@@ -45,7 +47,17 @@ export function CanvasControlBar({
   canRedo,
   onUndo,
   onRedo,
+  onClear,
+  canClear,
 }: CanvasControlBarProps) {
+  function handleClear() {
+    if (!canClear) return;
+    const ok = window.confirm(
+      "Clear the canvas? This removes all nodes and edges. You can undo with Cmd/Ctrl+Z.",
+    );
+    if (ok) onClear();
+  }
+
   return (
     <div className="flex items-center gap-0.5 px-2.5 py-1.5 bg-card border border-border rounded-full shadow-lg mb-2">
       <ControlButton
@@ -82,6 +94,16 @@ export function CanvasControlBar({
         disabled={!canRedo}
       >
         <Redo2 className="w-4 h-4" />
+      </ControlButton>
+
+      <div className="w-px h-5 bg-border mx-1" />
+
+      <ControlButton
+        title="Clear canvas"
+        onClick={handleClear}
+        disabled={!canClear}
+      >
+        <Trash2 className="w-4 h-4" />
       </ControlButton>
     </div>
   );

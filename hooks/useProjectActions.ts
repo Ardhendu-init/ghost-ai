@@ -83,6 +83,9 @@ export function useProjectActions() {
       const project = await res.json();
       closeDialog();
       router.push(`/editor/${project.id}`);
+      // Layout-level project list is server-rendered — refresh so the
+      // new project appears in the sidebar without a hard reload.
+      router.refresh();
     } catch (err) {
       console.error(err);
     } finally {
@@ -121,9 +124,11 @@ export function useProjectActions() {
       closeDialog();
       if (pathname === `/editor/${targetId}`) {
         router.push("/editor");
-      } else {
-        router.refresh();
       }
+      // Always refresh — the layout's server-fetched project list needs
+      // to drop the deleted entry. router.push alone keeps the cached
+      // layout payload and leaves the sidebar stale.
+      router.refresh();
     } catch (err) {
       console.error(err);
     } finally {

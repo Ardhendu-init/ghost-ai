@@ -1,10 +1,10 @@
 "use client";
 
-import { Plus, X, Trash2, Edit2, LayoutGrid } from "lucide-react";
+import { Plus, X, Trash2, Edit2, LayoutGrid, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import type { ProjectData } from "@/lib/projects";
@@ -138,11 +138,24 @@ function ProjectList({
   hideActions,
 }: ProjectListProps) {
   const pathname = usePathname();
+  const [navigatingId, setNavigatingId] = useState<string | null>(null);
+
+  // Clear pending state once navigation lands on the requested project,
+  // or any other path change cancels the spinner.
+  useEffect(() => {
+    if (navigatingId && pathname === `/editor/${navigatingId}`) {
+      setNavigatingId(null);
+    }
+  }, [pathname, navigatingId]);
+
+  const isNavigating = navigatingId !== null;
 
   return (
     <div className="space-y-2">
       {projects.map((project) => {
         const isActive = pathname === `/editor/${project.id}`;
+        const isPending = navigatingId === project.id;
+        const isDisabled = isNavigating && !isPending;
         return (
           <div
             key={project.id}
@@ -150,17 +163,37 @@ function ProjectList({
               isActive
                 ? "bg-muted border-border"
                 : "bg-muted/30 hover:bg-muted/60 border-border/50"
-            }`}
+            } ${isDisabled ? "opacity-50" : ""}`}
           >
-            <Link href={`/editor/${project.id}`} className="flex-1 min-w-0">
+            <Link
+              href={`/editor/${project.id}`}
+              className={`flex-1 min-w-0 flex items-center gap-2 ${
+                isActive || isNavigating ? "pointer-events-none" : ""
+              }`}
+              aria-disabled={isActive || isNavigating}
+              tabIndex={isActive || isNavigating ? -1 : undefined}
+              onClick={() => {
+                if (isActive || isNavigating) return;
+                setNavigatingId(project.id);
+              }}
+            >
               <p
                 className={`text-sm font-semibold truncate ${isActive ? "text-foreground" : "text-foreground/60"}`}
               >
                 {project.name}
               </p>
+              {isPending && (
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-brand" />
+              )}
             </Link>
             {!hideActions && (
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+              <div
+                className={`flex gap-1 transition-opacity ml-2 shrink-0 ${
+                  isNavigating
+                    ? "opacity-0 pointer-events-none"
+                    : "opacity-0 group-hover:opacity-100"
+                }`}
+              >
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

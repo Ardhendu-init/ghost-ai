@@ -352,6 +352,26 @@ Update this file whenever the current phase, active feature, or implementation s
     - `onImport` calls `canvasRef.current?.loadTemplate(template)`
   - ✓ Build passes (`npm run build` successful, no type errors)
 
+- Issue triage from `context/current-issue.md` (clear canvas, sidebar refresh, project nav loading):
+  - **Clear canvas was a no-op.** Inspection of `node_modules/@liveblocks/react-flow/dist/lib/flow.js` confirmed `applyNodeChanges` ignores `type: "remove"` changes (falls through with empty `break`). The Liveblocks-blessed delete path is `onDelete({ nodes, edges })`, which mutates the LiveMap directly. Rewired `clearCanvas` in `components/editor/flow-canvas.tsx` to call `onDelete({ nodes, edges })`; dropped the `onNodesChange`/`onEdgesChange` remove arrays.
+  - **Sidebar stale after create/delete.** Commit 01d5de0 had dropped `router.refresh()` calling it "redundant" — but the editor layout fetches `ownedProjects`/`sharedProjects` server-side, so a pure `router.push` reuses the cached RSC payload and the sidebar misses the mutation. In `hooks/useProjectActions.ts`:
+    - `submitCreate`: re-added `router.refresh()` after `router.push(/editor/<id>)`.
+    - `submitDelete`: always `router.refresh()`, whether or not the deleted project is the current path.
+  - **Project navigation feedback.** Added `app/editor/[roomId]/loading.tsx` rendering a navbar skeleton over a dotted canvas backdrop with a centered brand spinner and "Opening project" caption.
+  - **Sidebar click hardening.** `components/editor/project-sidebar.tsx`: `ProjectList` now tracks a `navigatingId` state set onClick, cleared via `useEffect` when `pathname` matches the target. While navigating, the pending link shows a `Loader2` spinner, all other links get `pointer-events-none opacity-50`, and rename/delete buttons hide. The active link is also `pointer-events-none` so re-clicking the current project is a no-op.
+  - ✓ Build passes (`npm run build` successful, no type errors).
+
+- Template import UX rework (insert-mode):
+  - Reworked `loadTemplate` in `components/editor/flow-canvas.tsx` to additive insert (no canvas wipe):
+    - Generates a fresh id per import (`${template.id}-${tag}-${origId}`) for every node and edge, with edge `source`/`target` rewritten through an `idMap`. Fixes silent merges caused by hardcoded ids colliding on re-import.
+    - Computes existing-canvas and incoming-template bboxes via new `nodesBounds` helper, offsets the template so its bbox sits `IMPORT_GAP = 80px` right of existing content (top-aligned); zero offset when the canvas is empty.
+    - Deselects currently-selected nodes via `select` changes and inserts new nodes with `selected: true`, so the import lands as a single draggable group.
+    - Calls `rfInstance.fitView({ nodes: newNodes, padding: 0.2, duration: 300 })` post-commit to pan to the import.
+    - Dropped the prior `setTimeout`-based clear-then-add sequence — no more races against Liveblocks sync.
+  - Added `clearCanvas` to `FlowCanvasHandle` for explicit destructive reset (removes all edges then nodes; no-op on empty canvas).
+  - Updated `components/editor/canvas-control-bar.tsx`: new `Trash2` button with `window.confirm` guard, gated by a `canClear` flag, sitting in its own divider segment after undo/redo. Plumbed `onClear`/`canClear` props.
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
 ## In Progress
 
 - None.
