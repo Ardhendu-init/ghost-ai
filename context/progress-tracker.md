@@ -244,6 +244,134 @@ Update this file whenever the current phase, active feature, or implementation s
     - `ShapePanel` rendered via React Flow's `<Panel position="bottom-center">`
   - ✓ Build passes (`npm run build` successful, no type errors)
 
+- Node shape rendering and drag preview (13-node-shape.md):
+  - Updated `components/editor/canvas-node.tsx`:
+    - CSS shapes (rectangle, pill, circle): `rounded-md` / `rounded-full` border styling; subtle `border-border` at rest, brighter `border-primary` when selected
+    - SVG shapes (diamond, hexagon, cylinder): inline SVG fills `w-full h-full` of the node container; `preserveAspectRatio="none"` for diamond and cylinder, `xMidYMid meet` for hexagon; stroke weight increases on selection
+    - Cylinder rendered with rect body + side lines + top filled ellipse + bottom stroke-only ellipse for 3D appearance
+  - Updated `components/editor/shape-panel.tsx`:
+    - Added drag state tracking (`shape, width, height, x, y`)
+    - `onDragStart`: suppresses browser's native ghost via 1×1 transparent canvas `setDragImage`; initialises drag state
+    - `onDrag`: updates cursor position (skips `0,0` off-screen events)
+    - `onDragEnd`: clears drag state
+    - `ShapePreview` renders the matching shape at 60% scale, centered on cursor, via `createPortal` to `document.body` (`z-index: 9999`)
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Node editing (14-node-editing.md):
+  - Created `contexts/canvas-actions.ts`: `NodeLabelContext` providing `updateLabel(id, label)` to node components; consumed via `useUpdateNodeLabel()` hook
+  - Updated `components/editor/flow-canvas.tsx`:
+    - Defined `updateLabel` callback: finds node in the `nodes` array, fires `onNodesChange([{ type: "replace", id, item: { ...node, data: { ...node.data, label } } }])` — the only `NodeChange` type that syncs data updates through Liveblocks
+    - Wrapped the canvas `<div>` with `NodeLabelContext.Provider`
+  - Updated `components/editor/canvas-node.tsx`:
+    - Added `NodeResizer` to all shape variants: `isVisible={selected}`, `minWidth={60}`, `minHeight={40/60}`; subtle line (`opacity: 0.4`) and small handle (8×8px, card fill, primary border) styled to match dark UI
+    - Resizing works via Liveblocks' `dimensions` change handler which stores root-level `width`/`height` (React Flow gives these priority over `style.width/height` in `getNodeInlineStyleDimensions`)
+    - Added `NodeLabel` sub-component: double-click to start edit; `<textarea>` with `defaultValue={label}` overlays the label in the same centered position; `nodrag nowheel nopan` classes prevent canvas drag/pan/zoom while typing; `onBlur` saves via `updateLabel`; `Escape` sets `cancelRef=true` before calling `blur()` so the blur handler skips the update (cancel without save); `stopPropagation` on `mousedown/click/pointerdown` prevents canvas interactions
+    - Placeholder text (`"Label"` in italic/30% opacity) shown when label is empty
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Node color toolbar (15-node-color-toolbar.md):
+  - Updated `types/canvas.ts`: added `NodeColorPair` type and `NODE_COLORS` constant (8 bg/text pairs from ui-context.md); added `textColor?` field to `NodeData`
+  - Updated `contexts/canvas-actions.ts`: added `NodeColorContext` providing `updateColor(id, bg, text)` and `useUpdateNodeColor()` hook
+  - Updated `components/editor/flow-canvas.tsx`:
+    - Added `updateColor` callback using `onNodesChange` replace to sync `color` + `textColor` through Liveblocks
+    - Wrapped canvas tree with `NodeColorContext.Provider`
+  - Created `components/editor/node-color-toolbar.tsx`:
+    - Uses React Flow's `NodeToolbar` (position Top, offset 10) — renders outside the node DOM so it never overlaps or interferes with drag/pan
+    - Shows only when node is `selected`
+    - 8 circular swatches (18px), one per `NODE_COLORS` pair
+    - Active swatch: colored border + subtle ring using the pair's text color
+    - Hover: tight glow (`box-shadow: 0 0 5px 1px {text}50`) — controlled, not blurred
+    - `stopPropagation` on mousedown/click/pointerdown prevents canvas drag/pan
+  - Updated `components/editor/canvas-node.tsx`:
+    - All shape variants (CSS and SVG) render `NodeColorToolbar` when selected
+    - SVG shapes (diamond, hexagon, cylinder) accept `fill` prop; use `data.color ?? var(--card)` instead of hardcoded `var(--card)`
+    - CSS shapes use `style={{ backgroundColor: nodeBg }}` instead of `bg-card` class
+    - `NodeLabel` accepts `textColor?` prop; applies as inline style (overrides `var(--foreground)` fallback)
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Edge behaviour (16-edge-behaviour.md):
+  - Updated `types/canvas.ts`: added `EdgeData` type `{ label?: string }`, changed `CanvasEdge` to use `EdgeData` instead of `Record<string, never>`
+  - Updated `contexts/canvas-actions.ts`: added `EdgeLabelContext` and `useUpdateEdgeLabel()` hook — mirrors node label/color pattern
+  - Updated `components/editor/canvas-node.tsx`:
+    - Added `group` class to both container variants (SVG shapes and CSS shapes)
+    - Handles styled: 10px white dots with dark border (`!border-neutral-900`), `!opacity-0` at rest, `group-hover:!opacity-100` fade in, 150ms transition
+    - All four handles (Top/Right/Bottom/Left) consistent across all shape types
+  - Created `components/editor/canvas-edge.tsx`:
+    - `getSmoothStepPath` with `borderRadius: 10` for clean right-angle routing
+    - Dimmed at rest (opacity 0.5), brightens to 1 on hover or selection; stroke color shifts to `--primary` when selected
+    - Wide transparent path (strokeWidth 15) for easy hover and click without thick visible line
+    - Per-edge SVG `<defs>` arrowhead marker whose fill tracks the current stroke color
+    - `EdgeLabelRenderer` positions label div at path midpoint using `[labelX, labelY]` from `getSmoothStepPath` — no manual calculation
+    - Double-click anywhere on edge or label area opens inline `<input>` editor
+    - Input width grows with label length; saves on blur or Enter; Escape cancels without saving
+    - Saved labels render as pill badges (`rounded-full` border, muted text)
+    - When edge is hovered/selected but has no label, shows faint `+label` hint
+    - `stopPropagation` on mousedown/click/pointerdown prevents canvas drag/pan during label edit
+  - Updated `components/editor/flow-canvas.tsx`:
+    - Registered `edgeTypes = { canvasEdge: CanvasEdgeComponent }` (module-level stable ref)
+    - Added `defaultEdgeOptions = { type: "canvasEdge" }` so all new connections use custom renderer
+    - Added `updateEdgeLabel` callback using `onEdgesChange` with `type: "replace"` to sync labels through Liveblocks
+    - Wrapped canvas tree with `EdgeLabelContext.Provider`
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Canvas ergonomics (17-canvas-ergonomics.md):
+  - Removed MiniMap from the canvas
+  - Created `components/editor/canvas-control-bar.tsx`:
+    - Pill-shaped floating bar rendered via React Flow `<Panel position="bottom-left">`
+    - Zoom group: zoom out, fit view, zoom in — all wired to React Flow instance with 200ms animation
+    - Thin divider between zoom and history groups
+    - History group: undo and redo — wired to Liveblocks `useUndo`/`useRedo`
+    - Disabled state (opacity-40, no hover) when `useCanUndo`/`useCanRedo` returns false
+  - Created `hooks/useKeyboardShortcuts.ts`:
+    - Receives RF instance + undo/redo handlers
+    - Skips shortcuts when target is `input`, `textarea`, or `contentEditable`
+    - `+`/`=` → zoom in, `-` → zoom out (200ms duration)
+    - `Cmd/Ctrl+Z` → undo, `Cmd/Ctrl+Shift+Z` → redo, `Cmd/Ctrl+Y` → redo
+  - Updated `components/editor/flow-canvas.tsx`: hooks wired, control bar rendered
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Starter template library (18-starter-template.md):
+  - Created `components/editor/starter-templates.ts`:
+    - `CanvasTemplate` type with id, name, description, nodes, edges
+    - `CANVAS_TEMPLATES` array with three templates using shared `CanvasNode` / `CanvasEdge` types and `NODE_COLORS` palette
+    - **Microservices**: API gateway → 4 services (rectangle) → 4 databases (cylinder); blue/purple/teal palette
+    - **CI/CD Pipeline**: 8-stage linear flow from code commit to production deploy; green/blue/orange palette
+    - **Event-Driven System**: Diamond producer → hexagon event bus → 3 consumers + dead-letter queue; purple/teal/red palette
+  - Created `components/editor/starter-templates-modal.tsx`:
+    - `Dialog`-based modal with scrollable 3-column grid of template cards
+    - Lightweight SVG preview per card: calculates bounds, scales/fits to 240×150 viewport, renders edges as dashed lines, nodes as their actual shapes (diamond, hexagon, cylinder, ellipse, rect)
+    - Import button calls `onImport(template)` then closes modal
+  - Updated `components/editor/flow-canvas.tsx`:
+    - Converted to `forwardRef` exporting `FlowCanvasHandle` with a `loadTemplate` method
+    - `loadTemplate` clears all existing nodes/edges then adds template nodes/edges via `onNodesChange`/`onEdgesChange`, then `fitView` after 50 ms
+    - Internal `loadTemplateFnRef` keeps the latest closure without breaking the stable `useImperativeHandle` handle
+  - Updated `components/editor/canvas-wrapper.tsx`: accepts `canvasRef?: React.Ref<FlowCanvasHandle>` and threads it down to `FlowCanvas`
+  - Updated `components/editor/workspace-shell.tsx`:
+    - `canvasRef = useRef<FlowCanvasHandle>(null)` wired to `CanvasWrapper`
+    - **Templates** button (LayoutTemplate icon) in workspace navbar opens modal
+    - `onImport` calls `canvasRef.current?.loadTemplate(template)`
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Issue triage from `context/current-issue.md` (clear canvas, sidebar refresh, project nav loading):
+  - **Clear canvas was a no-op.** Inspection of `node_modules/@liveblocks/react-flow/dist/lib/flow.js` confirmed `applyNodeChanges` ignores `type: "remove"` changes (falls through with empty `break`). The Liveblocks-blessed delete path is `onDelete({ nodes, edges })`, which mutates the LiveMap directly. Rewired `clearCanvas` in `components/editor/flow-canvas.tsx` to call `onDelete({ nodes, edges })`; dropped the `onNodesChange`/`onEdgesChange` remove arrays.
+  - **Sidebar stale after create/delete.** Commit 01d5de0 had dropped `router.refresh()` calling it "redundant" — but the editor layout fetches `ownedProjects`/`sharedProjects` server-side, so a pure `router.push` reuses the cached RSC payload and the sidebar misses the mutation. In `hooks/useProjectActions.ts`:
+    - `submitCreate`: re-added `router.refresh()` after `router.push(/editor/<id>)`.
+    - `submitDelete`: always `router.refresh()`, whether or not the deleted project is the current path.
+  - **Project navigation feedback.** Added `app/editor/[roomId]/loading.tsx` rendering a navbar skeleton over a dotted canvas backdrop with a centered brand spinner and "Opening project" caption.
+  - **Sidebar click hardening.** `components/editor/project-sidebar.tsx`: `ProjectList` now tracks a `navigatingId` state set onClick, cleared via `useEffect` when `pathname` matches the target. While navigating, the pending link shows a `Loader2` spinner, all other links get `pointer-events-none opacity-50`, and rename/delete buttons hide. The active link is also `pointer-events-none` so re-clicking the current project is a no-op.
+  - ✓ Build passes (`npm run build` successful, no type errors).
+
+- Template import UX rework (insert-mode):
+  - Reworked `loadTemplate` in `components/editor/flow-canvas.tsx` to additive insert (no canvas wipe):
+    - Generates a fresh id per import (`${template.id}-${tag}-${origId}`) for every node and edge, with edge `source`/`target` rewritten through an `idMap`. Fixes silent merges caused by hardcoded ids colliding on re-import.
+    - Computes existing-canvas and incoming-template bboxes via new `nodesBounds` helper, offsets the template so its bbox sits `IMPORT_GAP = 80px` right of existing content (top-aligned); zero offset when the canvas is empty.
+    - Deselects currently-selected nodes via `select` changes and inserts new nodes with `selected: true`, so the import lands as a single draggable group.
+    - Calls `rfInstance.fitView({ nodes: newNodes, padding: 0.2, duration: 300 })` post-commit to pan to the import.
+    - Dropped the prior `setTimeout`-based clear-then-add sequence — no more races against Liveblocks sync.
+  - Added `clearCanvas` to `FlowCanvasHandle` for explicit destructive reset (removes all edges then nodes; no-op on empty canvas).
+  - Updated `components/editor/canvas-control-bar.tsx`: new `Trash2` button with `window.confirm` guard, gated by a `canClear` flag, sitting in its own divider segment after undo/redo. Plumbed `onClear`/`canClear` props.
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
 ## In Progress
 
 - None.

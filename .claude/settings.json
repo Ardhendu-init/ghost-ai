@@ -9,7 +9,12 @@
       "Read(//Users/ardhendu/.nvm/versions/node/**)",
       "Bash(brew list *)",
       "Read(//usr/local/bin/**)",
-      "Read(//opt/homebrew/bin/**)"
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(node -e ' *)",
+      "Bash(cp \"/Users/ardhendu/Desktop/My Projects/ghost-ai/proxy.ts\" \"/Users/ardhendu/Desktop/My Projects/ghost-ai/middleware.ts\" && echo \"Copied\")"
+    ],
+    "additionalDirectories": [
+      "/Users/ardhendu/Desktop/My Projects/ghost-ai"
     ]
   }
 }

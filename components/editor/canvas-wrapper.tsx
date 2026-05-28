@@ -3,9 +3,11 @@
 import { LiveblocksProvider, RoomProvider, ClientSideSuspense } from "@liveblocks/react";
 import { ErrorBoundary } from "react-error-boundary";
 import { FlowCanvas } from "./flow-canvas";
+import type { FlowCanvasHandle } from "./flow-canvas";
 
 interface CanvasWrapperProps {
   roomId: string;
+  canvasRef?: React.Ref<FlowCanvasHandle>;
 }
 
 function CanvasError() {
@@ -28,7 +30,7 @@ function CanvasLoading() {
   );
 }
 
-export function CanvasWrapper({ roomId }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, canvasRef }: CanvasWrapperProps) {
   return (
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider
@@ -37,7 +39,7 @@ export function CanvasWrapper({ roomId }: CanvasWrapperProps) {
       >
         <ErrorBoundary fallbackRender={() => <CanvasError />}>
           <ClientSideSuspense fallback={<CanvasLoading />}>
-            <FlowCanvas />
+            <FlowCanvas ref={canvasRef} />
           </ClientSideSuspense>
         </ErrorBoundary>
       </RoomProvider>
