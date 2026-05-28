@@ -31,6 +31,7 @@ function ControlButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -81,18 +82,10 @@ export function CanvasControlBar({
 
       <div className="w-px h-5 bg-border mx-1" />
 
-      <ControlButton
-        title="Undo"
-        onClick={onUndo}
-        disabled={!canUndo}
-      >
+      <ControlButton title="Undo" onClick={onUndo} disabled={!canUndo}>
         <Undo2 className="w-4 h-4" />
       </ControlButton>
-      <ControlButton
-        title="Redo"
-        onClick={onRedo}
-        disabled={!canRedo}
-      >
+      <ControlButton title="Redo" onClick={onRedo} disabled={!canRedo}>
         <Redo2 className="w-4 h-4" />
       </ControlButton>
 

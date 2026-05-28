@@ -258,6 +258,7 @@ export function StarterTemplatesModal({
                     {template.description}
                   </p>
                   <Button
+                    aria-label={`Import ${template.name} template`}
                     size="sm"
                     className="mt-2 w-full"
                     onClick={() => {

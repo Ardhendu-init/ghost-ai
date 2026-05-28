@@ -28,21 +28,23 @@ export function useKeyboardShortcuts({
 
       const meta = e.metaKey || e.ctrlKey;
 
-      if (meta && e.key === "Z") {
+      const key = e.key.toLowerCase();
+      if (meta && e.shiftKey && key === "z") {
         e.preventDefault();
         redo();
         return;
       }
-      if (meta && e.key === "z") {
+      if (meta && !e.shiftKey && key === "z") {
         e.preventDefault();
         undo();
         return;
       }
-      if (meta && e.key === "y") {
+      if (meta && key === "y") {
         e.preventDefault();
         redo();
         return;
       }
+
       if (!meta && (e.key === "+" || e.key === "=")) {
         e.preventDefault();
         rfInstance?.zoomIn({ duration: 200 });

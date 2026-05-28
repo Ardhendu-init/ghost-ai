@@ -140,13 +140,14 @@ function ProjectList({
   const pathname = usePathname();
   const [navigatingId, setNavigatingId] = useState<string | null>(null);
 
-  // Clear pending state once navigation lands on the requested project,
-  // or any other path change cancels the spinner.
+  // Clear pending state on any pathname change — covers landing on the
+  // requested project, a redirect elsewhere, or being bounced out of /editor
+  // entirely (e.g. session expiry → sign-in). Without this, a navigation
+  // that resolves anywhere other than the target would leave every link
+  // permanently disabled.
   useEffect(() => {
-    if (navigatingId && pathname === `/editor/${navigatingId}`) {
-      setNavigatingId(null);
-    }
-  }, [pathname, navigatingId]);
+    setNavigatingId((current) => (current !== null ? null : current));
+  }, [pathname]);
 
   const isNavigating = navigatingId !== null;
 
