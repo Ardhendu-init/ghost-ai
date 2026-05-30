@@ -10,6 +10,8 @@ interface CanvasWrapperProps {
   roomId: string;
   canvasRef?: React.Ref<FlowCanvasHandle>;
   onSaveStatusChange?: (status: SaveStatus) => void;
+  /** Children rendered inside the RoomProvider (but outside Suspense) — e.g. the AI sidebar. */
+  children?: React.ReactNode;
 }
 
 function CanvasError() {
@@ -32,7 +34,7 @@ function CanvasLoading() {
   );
 }
 
-export function CanvasWrapper({ roomId, canvasRef, onSaveStatusChange }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, canvasRef, onSaveStatusChange, children }: CanvasWrapperProps) {
   return (
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider
@@ -48,6 +50,8 @@ export function CanvasWrapper({ roomId, canvasRef, onSaveStatusChange }: CanvasW
             />
           </ClientSideSuspense>
         </ErrorBoundary>
+        {/* Siblings of the canvas rendered inside RoomProvider so they can use Liveblocks hooks. */}
+        {children}
       </RoomProvider>
     </LiveblocksProvider>
   );

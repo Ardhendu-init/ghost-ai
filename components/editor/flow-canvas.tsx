@@ -21,12 +21,15 @@ import {
 } from "@xyflow/react";
 import type { ReactFlowInstance } from "@xyflow/react";
 import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow";
-import { useUndo, useRedo, useCanUndo, useCanRedo, useMyPresence } from "@liveblocks/react";
+import type { CursorsCursorProps } from "@liveblocks/react-flow";
+import { useUndo, useRedo, useCanUndo, useCanRedo, useMyPresence, useOther } from "@liveblocks/react";
+import { Loader2 } from "lucide-react";
 import { CanvasNodeComponent } from "./canvas-node";
 import { CanvasEdgeComponent } from "./canvas-edge";
 import { ShapePanel } from "./shape-panel";
 import { CanvasControlBar } from "./canvas-control-bar";
 import { PresenceAvatars } from "./presence-avatars";
+import { AiCursor, AiStatusBanner } from "./ai-overlay";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useCanvasAutoSave } from "@/hooks/useCanvasAutoSave";
 import type { SaveStatus } from "@/hooks/useCanvasAutoSave";
@@ -41,6 +44,53 @@ import {
 const nodeTypes = { canvasNode: CanvasNodeComponent };
 const edgeTypes = { canvasEdge: CanvasEdgeComponent };
 const defaultEdgeOptions = { type: "canvasEdge" };
+
+/** Custom cursor — adds a spinning indicator when the user's presence has `thinking: true`. */
+function ThinkingCursor({ connectionId }: CursorsCursorProps) {
+  const data = useOther(connectionId, (o) => ({
+    thinking: o.presence.thinking,
+    name: o.info?.name ?? "",
+    color: o.info?.color ?? "#6366f1",
+  }));
+
+  if (!data) return null;
+
+  return (
+    <div className="pointer-events-none select-none">
+      {/* Cursor SVG */}
+      <svg
+        width="18"
+        height="22"
+        viewBox="0 0 18 22"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="block"
+      >
+        <path
+          d="M1 1L1 18L5.5 13.5L8 21L11 20L8.5 12.5H16L1 1Z"
+          fill={data.color}
+          stroke="white"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+      </svg>
+      {/* Name badge with optional thinking spinner */}
+      {data.name && (
+        <div
+          className="absolute left-3.5 top-4 flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium text-white whitespace-nowrap shadow-sm"
+          style={{ backgroundColor: data.color }}
+        >
+          {data.thinking && (
+            <Loader2 className="h-2.5 w-2.5 animate-spin shrink-0" />
+          )}
+          {data.name}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const cursorsComponents = { Cursor: ThinkingCursor };
 
 const IMPORT_GAP = 80;
 const DEFAULT_NODE_W = 120;
@@ -404,7 +454,11 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(
                 }}
               >
                 <Background variant={BackgroundVariant.Dots} />
-                <Cursors />
+                <Cursors components={cursorsComponents} />
+                <AiCursor />
+                <Panel position="top-center">
+                  <AiStatusBanner />
+                </Panel>
                 <Panel position="top-right">
                   <PresenceAvatars />
                 </Panel>

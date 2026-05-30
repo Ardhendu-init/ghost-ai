@@ -17,6 +17,7 @@ interface ProjectSidebarProps {
   onDeleteProject: (projectId: string, projectName: string) => void;
   ownedProjects: ProjectData[];
   sharedProjects: ProjectData[];
+  isWorkspace?: boolean;
 }
 
 export function ProjectSidebar({
@@ -27,6 +28,7 @@ export function ProjectSidebar({
   onDeleteProject,
   ownedProjects,
   sharedProjects,
+  isWorkspace = false,
 }: ProjectSidebarProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -46,9 +48,9 @@ export function ProjectSidebar({
       )}
 
       <aside
-        className={`fixed left-0 top-16 h-[calc(100vh-4rem)] w-80 z-40 flex flex-col bg-card border-r border-border transition-transform duration-300 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed left-0 w-80 z-40 flex flex-col bg-card border-r border-border transition-transform duration-300 ${
+          isWorkspace ? "top-12 h-[calc(100vh-3rem)]" : "top-16 h-[calc(100vh-4rem)]"
+        } ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Header */}
         <div className="flex items-start justify-between p-4 pb-3">
