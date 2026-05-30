@@ -29,6 +29,7 @@ export function useCanvasAutoSave(
   });
 
   const save = useCallback(async () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
     updateStatus("saving");
     try {
       const res = await fetch(`/api/projects/${projectId}/canvas`, {

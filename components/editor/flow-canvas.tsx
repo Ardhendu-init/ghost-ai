@@ -153,10 +153,15 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(
     useEffect(() => {
       if (nodesRef.current.length > 0 || edgesRef.current.length > 0) return;
 
-      fetch(`/api/projects/${projectId}/canvas`)
+      const controller = new AbortController();
+
+      fetch(`/api/projects/${projectId}/canvas`, { signal: controller.signal })
         .then((r) => r.ok ? r.json() : null)
         .then((data) => {
+          if (controller.signal.aborted) return;
           if (!data?.canvas) return;
+          // Re-check: another client may have populated the room while the fetch was in flight.
+          if (nodesRef.current.length > 0 || edgesRef.current.length > 0) return;
           const { nodes: savedNodes, edges: savedEdges } = data.canvas as {
             nodes: CanvasNode[];
             edges: CanvasEdge[];
@@ -166,11 +171,15 @@ export const FlowCanvas = forwardRef<FlowCanvasHandle, FlowCanvasProps>(
           if (savedEdges?.length) {
             onEdgesChange(savedEdges.map((item) => ({ type: "add" as const, item })));
           }
-          setTimeout(() => {
-            rfInstanceRef.current?.fitView({ padding: 0.15, duration: 300 });
-          }, 50);
+          if (!controller.signal.aborted) {
+            setTimeout(() => {
+              rfInstanceRef.current?.fitView({ padding: 0.15, duration: 300 });
+            }, 50);
+          }
         })
         .catch(() => {});
+
+      return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

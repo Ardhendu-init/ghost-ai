@@ -42,7 +42,7 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
     if (!trimmed) return;
     setMessages((prev) => [
       ...prev,
-      { id: Date.now().toString(), role: "user", content: trimmed },
+      { id: crypto.randomUUID(), role: "user", content: trimmed },
     ]);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "72px";
@@ -67,8 +67,10 @@ export function AiSidebar({ isOpen, onClose }: AiSidebarProps) {
      */
     <aside
       id="ai-panel"
+      aria-hidden={!isOpen}
+      inert={!isOpen}
       className={`absolute right-0 top-0 h-full w-80 z-20 flex flex-col bg-card border-l border-border shadow-2xl transition-transform duration-300 ease-in-out ${
-        isOpen ? "translate-x-0" : "translate-x-full"
+        +isOpen ? "translate-x-0" : "translate-x-full pointer-events-none"
       }`}
     >
       {/* Header */}

@@ -72,10 +72,19 @@ export async function GET(
   try {
     const { downloadUrl } = await head(project.canvasBlobUrl);
     const res = await fetch(downloadUrl);
-    if (!res.ok) return NextResponse.json({ canvas: null });
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { error: "Failed to load saved canvas" },
+        { status: 502 },
+      );
+    }
     const canvas = await res.json();
     return NextResponse.json({ canvas });
   } catch {
-    return NextResponse.json({ canvas: null });
+    return NextResponse.json(
+      { error: "Failed to load saved canvas" },
+      { status: 502 },
+    );
   }
 }

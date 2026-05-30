@@ -130,7 +130,7 @@ export function PresenceAvatars() {
 
       {/* w-7 h-7 = 28px — matches AVATAR_SIZE */}
       <UserButton
-        appearance={{ elements: { avatarBox: "!w-7 !h-7" } }}
+        appearance={{ elements: { avatarBox: "w-7! h-7!" } }}
       />
     </div>
   );

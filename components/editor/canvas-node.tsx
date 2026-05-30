@@ -173,7 +173,7 @@ export function CanvasNodeComponent({ id, data, selected }: NodeProps<CanvasNode
 
   // Visible source handles — white dots, fade in on node hover
   const handleClass =
-    "!w-2.5 !h-2.5 !bg-white !border-2 !border-neutral-900 !rounded-full !opacity-0 group-hover:!opacity-100 !transition-opacity !duration-150";
+    "w-2.5! h-2.5! bg-white! border-2! border-neutral-900! rounded-full! opacity-0! group-hover:opacity-100! transition-opacity! duration-150!";
   // Invisible target handles — zero-size, present only so React Flow snaps
   // incoming connections to the nearest side instead of always defaulting to Top
   const targetStyle: React.CSSProperties = {
