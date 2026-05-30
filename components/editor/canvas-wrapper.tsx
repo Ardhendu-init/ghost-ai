@@ -4,10 +4,12 @@ import { LiveblocksProvider, RoomProvider, ClientSideSuspense } from "@liveblock
 import { ErrorBoundary } from "react-error-boundary";
 import { FlowCanvas } from "./flow-canvas";
 import type { FlowCanvasHandle } from "./flow-canvas";
+import type { SaveStatus } from "@/hooks/useCanvasAutoSave";
 
 interface CanvasWrapperProps {
   roomId: string;
   canvasRef?: React.Ref<FlowCanvasHandle>;
+  onSaveStatusChange?: (status: SaveStatus) => void;
 }
 
 function CanvasError() {
@@ -30,16 +32,20 @@ function CanvasLoading() {
   );
 }
 
-export function CanvasWrapper({ roomId, canvasRef }: CanvasWrapperProps) {
+export function CanvasWrapper({ roomId, canvasRef, onSaveStatusChange }: CanvasWrapperProps) {
   return (
     <LiveblocksProvider authEndpoint="/api/liveblocks-auth">
       <RoomProvider
         id={roomId}
-        initialPresence={{ cursor: null, isThinking: false }}
+        initialPresence={{ cursor: null, thinking: false }}
       >
         <ErrorBoundary fallbackRender={() => <CanvasError />}>
           <ClientSideSuspense fallback={<CanvasLoading />}>
-            <FlowCanvas ref={canvasRef} />
+            <FlowCanvas
+              ref={canvasRef}
+              projectId={roomId}
+              onSaveStatusChange={onSaveStatusChange}
+            />
           </ClientSideSuspense>
         </ErrorBoundary>
       </RoomProvider>

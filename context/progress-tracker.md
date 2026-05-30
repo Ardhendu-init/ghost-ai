@@ -372,13 +372,75 @@ Update this file whenever the current phase, active feature, or implementation s
   - Updated `components/editor/canvas-control-bar.tsx`: new `Trash2` button with `window.confirm` guard, gated by a `canClear` flag, sitting in its own divider segment after undo/redo. Plumbed `onClear`/`canClear` props.
   - ✓ Build passes (`npm run build` successful, no type errors)
 
+- AI sidebar UI (21-ai-sidebar.md):
+  - Created `components/editor/ai-sidebar.tsx`:
+    - Fixed floating sidebar that slides in from the right (`fixed right-0 top-12`, `transition-transform duration-300`, always rendered for smooth animation)
+    - Header: Bot icon, "AI Workspace" title, "Collaborate with Ghost AI" subtitle, close button
+    - shadcn `Tabs` with "AI Architect" and "Specs" tabs; active tab uses `bg-brand/15 text-brand` styling
+    - **AI Architect tab**: empty state with bot icon, description, and 3 starter prompt chips; scrollable chat area; user messages right-aligned (`bg-brand/15 border-brand/50`); assistant messages left-aligned (`bg-muted border-border`); auto-resizing textarea (72px min, 160px max); send button (`bg-brand text-black`); Enter submits, Shift+Enter inserts newline
+    - **Specs tab**: "Generate Spec" button (`bg-brand text-black`); demo spec card with file icon, title, snippet, and disabled Download button
+  - Updated `components/editor/workspace-shell.tsx`: replaced inline AI sidebar placeholder with `<AiSidebar>` component
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Presence avatars and live cursors (20-presence-avatars-cursor.md):
+  - Updated `liveblocks.config.ts`: renamed `isThinking` → `thinking` in Presence type
+  - Updated `components/editor/canvas-wrapper.tsx`: `initialPresence` updated to `{ cursor: null, thinking: false }`
+  - Created `components/editor/presence-avatars.tsx`:
+    - Uses `useOthers` (suspense) with `shallow` selector for performant join/leave updates
+    - Filters collaborators by `o.id !== userId` (Clerk user ID from `useAuth()`) to exclude the current user
+    - Shows up to 5 overlapping collaborator avatars with colored border ring (using `info.color` from UserMeta)
+    - Falls back to initials when no avatar image is available
+    - +N overflow chip when more than 5 collaborators are present
+    - Divider between collaborator group and Clerk UserButton — only rendered when collaborators exist
+    - Clerk `UserButton` with `!w-7 !h-7` to match the 28px avatar size
+    - Floating pill UI (`bg-card/80 backdrop-blur-sm`) rendered inside React Flow Panel
+  - Updated `components/editor/flow-canvas.tsx`:
+    - Added `useMyPresence` from `@liveblocks/react` to broadcast cursor position
+    - `onCanvasMouseMove`: converts screen coords to flow coords via `rfInstance.screenToFlowPosition`, calls `updateMyPresence({ cursor: pos })`
+    - `onCanvasMouseLeave`: calls `updateMyPresence({ cursor: null })`
+    - Both handlers attached to the canvas wrapper div
+    - `<Panel position="top-right"><PresenceAvatars /></Panel>` added — renders inside the canvas, separate from the workspace navbar
+    - Existing `<Cursors />` from `@liveblocks/react-flow` renders other participants' cursors using their `info.color` and presence cursor position
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Canvas autosave and persistence (22-canvas-auto-save.md):
+  - Renamed `canvasJsonPath` → `canvasBlobUrl` on the `Project` model; migration `20260528162242_rename_canvas_blob_url` applied and client regenerated
+  - Installed `@vercel/blob`
+  - Created `app/api/projects/[projectId]/canvas/route.ts`:
+    - `PUT` — receives canvas JSON, uploads to Vercel Blob (`canvas/{projectId}.json`), stores blob URL on the Prisma project record
+    - `GET` — reads `canvasBlobUrl` from Prisma, fetches and returns the saved canvas JSON from Vercel Blob; returns `{ canvas: null }` when none saved
+  - Created `hooks/useCanvasAutoSave.ts`:
+    - Accepts `projectId`, `nodes`, `edges`, optional `onStatusChange` callback
+    - 2-second debounce; skips first-mount render
+    - Tracks status: `idle | saving | saved | error`
+  - Updated `components/editor/flow-canvas.tsx`:
+    - Accepts `projectId` and `onSaveStatusChange` props
+    - Calls `useCanvasAutoSave` to debounce saves on node/edge changes
+    - On first mount: if room is empty (Liveblocks suspense resolves before render), fetches saved canvas from API and inserts nodes/edges, then `fitView`; skips load if room already has content
+  - Updated `components/editor/canvas-wrapper.tsx`: threads `projectId` and `onSaveStatusChange` down to `FlowCanvas`
+  - Updated `components/editor/workspace-shell.tsx`:
+    - Tracks `saveStatus` state; passes `onSaveStatusChange` to `CanvasWrapper`
+    - Inline save indicator in workspace navbar: spinner + "Saving…" / checkmark + "Saved" / alert + "Save failed"
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Issue triage from `context/current-issue.md` (save button, delete, handles, first-drop zoom, avatar hostname):
+  - **Save button**: already wired in `workspace-shell.tsx` to `canvasRef.current?.saveNow()` via `FlowCanvasHandle`; workspace-only (editor home navbar unchanged). ✓
+  - **Canvas route PUT access**: already `access: "private"` in Vercel Blob put call. ✓
+  - **Canvas route GET handler**: replaced raw `fetch(blobUrl)` with `head(blobUrl)` from `@vercel/blob` SDK to obtain a pre-authenticated `downloadUrl`, then fetches that. Handles private blob access correctly.
+  - **Delete / Backspace**: added `useEffect` in `flow-canvas.tsx` after `useLiveblocksFlow` that listens for Delete/Backspace on `document`, skips inputs/textareas/contenteditable, filters selected nodes and edges, and calls `onDelete` via Liveblocks collaborative state. Added `deleteKeyCode={null}` to `<ReactFlow>` to disable React Flow's built-in delete behavior.
+  - **Node connection handles (all 4 sides)**: removed `z-10` from `NodeLabel` container div in `canvas-node.tsx`. With no explicit z-index, React Flow's handles (z-index 5+ from library CSS) are now above the label overlay at the node edges, making right/bottom/left source handles accessible for connection dragging. Double-click in the node center still works because no handle occupies the center.
+  - **Auto-zoom on first node drop**: removed `fitView` prop from `<ReactFlow>`. Added a guard in `onInit` that calls `instance.fitView` only when nodes already exist in the room. Empty-canvas drops no longer trigger viewport zoom. Blob-loaded canvases still fit via the existing `useEffect` setTimeout.
+  - **Collaborator avatar image error**: added `img.clerk.com` to `images.remotePatterns` in `next.config.ts`.
+  - **UserButton in workspace navbar**: already absent from `workspace-shell.tsx`; `editor-navbar.tsx` (editor home) still has it. ✓
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Canvas interactions and persistence
+- AI canvas generation
 
 ## Open Questions
 

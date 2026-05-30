@@ -1,13 +1,17 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Share2, Bot, LayoutTemplate } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Share2, Bot, LayoutTemplate, Loader2 } from "lucide-react";
+import type { SaveStatus } from "@/hooks/useCanvasAutoSave";
 import { Button } from "@/components/ui/button";
 import { ShareDialog } from "@/components/editor/share-dialog";
 import { CanvasWrapper } from "@/components/editor/canvas-wrapper";
 import { StarterTemplatesModal } from "@/components/editor/starter-templates-modal";
+import { AiSidebar } from "@/components/editor/ai-sidebar";
 import type { FlowCanvasHandle } from "@/components/editor/flow-canvas";
 import type { CanvasTemplate } from "@/components/editor/starter-templates";
+
+const RESET_DELAY_MS = 2000;
 
 interface WorkspaceShellProps {
   projectId: string;
@@ -29,11 +33,42 @@ export function WorkspaceShell({
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const canvasRef = useRef<FlowCanvasHandle>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSaveStatusChange = useCallback((status: SaveStatus) => {
+    setSaveStatus(status);
+  }, []);
+
+  // Auto-reset "saved" and "error" back to "idle" after a brief display
+  useEffect(() => {
+    if (saveStatus !== "saved" && saveStatus !== "error") return;
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = setTimeout(() => {
+      setSaveStatus("idle");
+    }, RESET_DELAY_MS);
+    return () => {
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    };
+  }, [saveStatus]);
 
   function handleImportTemplate(template: CanvasTemplate) {
     canvasRef.current?.loadTemplate(template);
   }
+
+  function handleManualSave() {
+    canvasRef.current?.saveNow();
+  }
+
+  const saveButtonLabel =
+    saveStatus === "saving"
+      ? "Saving..."
+      : saveStatus === "saved"
+        ? "Saved"
+        : saveStatus === "error"
+          ? "Error"
+          : "Save";
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -43,6 +78,18 @@ export function WorkspaceShell({
           {projectName}
         </span>
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 min-w-16"
+            onClick={handleManualSave}
+            disabled={saveStatus === "saving"}
+          >
+            {saveStatus === "saving" && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            )}
+            {saveButtonLabel}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -75,24 +122,18 @@ export function WorkspaceShell({
         </div>
       </div>
 
-      {/* Content row */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Canvas */}
-        <div className="flex-1 bg-background overflow-hidden">
-          <CanvasWrapper roomId={projectId} canvasRef={canvasRef} />
+      {/* Content row — relative so AiSidebar can be absolute within it */}
+      <div className="flex-1 relative overflow-hidden">
+        {/* Canvas fills the full area */}
+        <div className="absolute inset-0 bg-background">
+          <CanvasWrapper
+            roomId={projectId}
+            canvasRef={canvasRef}
+            onSaveStatusChange={handleSaveStatusChange}
+          />
         </div>
 
-        {/* AI sidebar placeholder */}
-        {isAiOpen && (
-          <aside
-            id="ai-panel"
-            className="w-80 shrink-0 border-l border-border bg-card flex items-center justify-center"
-          >
-            <p className="text-sm text-muted-foreground select-none">
-              AI chat coming soon
-            </p>
-          </aside>
-        )}
+        <AiSidebar isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
       </div>
 
       <ShareDialog

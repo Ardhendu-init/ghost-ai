@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { EditorNavbar } from "./editor-navbar";
 import { ProjectSidebar } from "./project-sidebar";
 import { CreateProjectDialog } from "./create-project-dialog";
@@ -19,6 +20,8 @@ interface EditorClientProps {
 export function EditorClient({ ownedProjects, sharedProjects, children }: EditorClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const actions = useProjectActions();
+  const pathname = usePathname();
+  const isWorkspace = pathname !== "/editor" && pathname.startsWith("/editor/");
 
   return (
     <ProjectDialogsContext.Provider value={actions}>
@@ -26,6 +29,7 @@ export function EditorClient({ ownedProjects, sharedProjects, children }: Editor
         <EditorNavbar
           isSidebarOpen={isSidebarOpen}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isWorkspace={isWorkspace}
         />
         <ProjectSidebar
           isOpen={isSidebarOpen}
