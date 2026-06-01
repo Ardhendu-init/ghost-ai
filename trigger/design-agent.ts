@@ -1,4 +1,5 @@
-import { task, logger } from "@trigger.dev/sdk/v3";
+import { schemaTask, wait, tags, logger } from "@trigger.dev/sdk";
+import { z } from "zod";
 import { OpenRouter } from "@openrouter/sdk";
 import { mutateFlow } from "@liveblocks/react-flow/node";
 import type { Node, Edge } from "@xyflow/react";
@@ -22,7 +23,11 @@ import type { CanvasNode, CanvasEdge, NodeData, ShapeType } from "../types/canva
  */
 const MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free";
 
-type DesignAgentPayload = { prompt: string; roomId: string };
+const DesignAgentPayload = z.object({
+  prompt: z.string().min(1),
+  roomId: z.string().min(1),
+});
+type DesignAgentPayload = z.infer<typeof DesignAgentPayload>;
 
 // The react-flow storage helper takes a minimal Liveblocks client interface;
 // our node client satisfies it structurally.
@@ -64,7 +69,7 @@ async function clearStatus(roomId: string): Promise<void> {
 
 /** Hold the final status briefly so users see it, then clear AI presence. */
 async function clearLater(roomId: string): Promise<void> {
-  await new Promise((r) => setTimeout(r, 3500));
+  await wait.for({ seconds: 4 });
   await clearStatus(roomId);
 }
 
@@ -170,13 +175,22 @@ function colorPair(color: unknown): { bg: string; text: string } {
 /* The task                                                            */
 /* ------------------------------------------------------------------ */
 
-export const designAgentTask = task({
+export const designAgentTask = schemaTask({
   id: "design-agent",
+  schema: DesignAgentPayload,
   maxDuration: 300,
-  run: async (payload: DesignAgentPayload, { ctx }) => {
+  retry: {
+    maxAttempts: 3,
+    factor: 2,
+    minTimeoutInMs: 1000,
+    maxTimeoutInMs: 30_000,
+    randomize: true,
+  },
+  run: async (payload, { ctx }) => {
     const { prompt, roomId } = payload;
     const client = flowClient();
 
+    await tags.add([`design-agent:room:${roomId}`, "design-agent:started"]);
     logger.info("Design agent started", { roomId, prompt });
     await publishStatus(roomId, "thinking", "Ghost AI is reading your prompt…");
 
@@ -212,6 +226,7 @@ export const designAgentTask = task({
 
       const content = completion.choices?.[0]?.message?.content ?? "";
       plan = parsePlan(typeof content === "string" ? content : "");
+      await tags.add("design-agent:planned");
       logger.info("Design plan generated", { actions: plan.actions.length });
     } catch (err) {
       logger.error("Design generation failed", { err: String(err) });
@@ -306,7 +321,7 @@ export const designAgentTask = task({
       }
 
       // Small beat so the animation reads as deliberate.
-      await new Promise((r) => setTimeout(r, 220));
+      await wait.for({ seconds: 1 });
     }
 
     // 3b. Apply the remaining edits (edges, moves, resizes, updates, deletes)
@@ -402,6 +417,7 @@ export const designAgentTask = task({
     }
 
     // 4. Done — show a final message, then clear presence.
+    await tags.add("design-agent:complete");
     await publishStatus(roomId, "done", plan.summary || "Design complete.");
     logger.info("Design agent complete", { roomId, applied });
     await clearLater(roomId);

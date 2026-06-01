@@ -76,7 +76,7 @@ export function AiSidebar({ isOpen, onClose, projectId }: AiSidebarProps) {
     const msg: ChatMessage = {
       id: crypto.randomUUID(),
       sender: role === "user" ? (displayName ?? senderName) : "Ghost AI",
-      role: "user", // ChatMessage only has "user" role per schema; sender distinguishes AI
+      role,
       content,
       timestamp: Date.now(),
     };
@@ -108,6 +108,9 @@ export function AiSidebar({ isOpen, onClose, projectId }: AiSidebarProps) {
       });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const data = await res.json();
+      if (typeof data.runId !== "string" || !data.runId || typeof data.publicToken !== "string" || !data.publicToken) {
+        throw new Error("Invalid response: missing runId or publicToken");
+      }
       setRunId(data.runId);
       setPublicToken(data.publicToken);
     } catch {
@@ -666,7 +669,14 @@ function SpecsPanel({
         }),
       });
       if (!res.ok) throw new Error(`Spec trigger failed (${res.status})`);
-      const { runId } = await res.json();
+      const resBody = await res.json();
+      const runId: string | undefined = typeof resBody?.runId === "string" && resBody.runId ? resBody.runId : undefined;
+      if (!runId) {
+        setIsGenerating(false);
+        setSpecRunId(null);
+        refreshSpecs();
+        return;
+      }
       setSpecRunId(runId);
 
       // Get a public read token for realtime tracking.
@@ -676,8 +686,18 @@ function SpecsPanel({
         body: JSON.stringify({ runId }),
       });
       if (tokenRes.ok) {
-        const { token } = await tokenRes.json();
-        setSpecToken(token);
+        const tokenBody = await tokenRes.json();
+        const token: string | undefined = typeof tokenBody?.token === "string" && tokenBody.token ? tokenBody.token : undefined;
+        if (token) {
+          setSpecToken(token);
+        } else {
+          // Token missing from response — fall back to polling.
+          setTimeout(() => {
+            setIsGenerating(false);
+            setSpecRunId(null);
+            refreshSpecs();
+          }, 60_000);
+        }
       } else {
         // Fallback: refresh after a generous delay if realtime tracking is unavailable.
         setTimeout(() => {
@@ -864,8 +884,11 @@ function SpecListItem({
 
   return (
     <div
-      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-secondary hover:bg-secondary/70 cursor-pointer transition-colors group"
+      role="button"
+      tabIndex={0}
+      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-secondary hover:bg-secondary/70 cursor-pointer transition-colors group w-full text-left"
       onClick={onPreview}
+      onKeyDown={(e) => e.key === "Enter" && onPreview()}
     >
       <FileText className="h-4 w-4 text-brand shrink-0" />
       <div className="flex-1 min-w-0">

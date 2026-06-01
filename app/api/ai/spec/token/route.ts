@@ -7,10 +7,19 @@ export async function POST(request: Request) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json().catch(() => ({}));
-  const { runId } = body;
+  const bodyOrNull = await request.json().catch(() => null);
+  if (
+    typeof bodyOrNull !== "object" ||
+    bodyOrNull === null ||
+    Array.isArray(bodyOrNull)
+  ) {
+    return NextResponse.json({ error: "Missing runId" }, { status: 400 });
+  }
+  const { runId } = bodyOrNull as Record<string, unknown>;
 
-  if (!runId) return NextResponse.json({ error: "Missing runId" }, { status: 400 });
+  if (!runId || typeof runId !== "string") {
+    return NextResponse.json({ error: "Missing runId" }, { status: 400 });
+  }
 
   const taskRun = await prisma.taskRun.findUnique({ where: { runId } });
   if (!taskRun || taskRun.userId !== userId) {

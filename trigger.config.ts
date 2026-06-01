@@ -1,8 +1,8 @@
-import { defineConfig } from "@trigger.dev/sdk/v3";
+import { defineConfig } from "@trigger.dev/sdk";
 import { prismaExtension } from "@trigger.dev/build/extensions/prisma";
 
 export default defineConfig({
-  project: process.env.TRIGGER_PROJECT_REF!,
+  project: "proj_guhjyezwgxqpeqzvmgku",
   dirs: ["trigger"],
 
   // Max compute-time seconds a task run may run before being killed (min 5s)
@@ -13,9 +13,7 @@ export default defineConfig({
   machine: "small-1x",
   runtime: "node",
   build: {
-    extensions: [
-      prismaExtension({ mode: "modern" }),
-    ],
+    extensions: [prismaExtension({ mode: "modern" })],
   },
   // Default retry behavior for all tasks (can be overridden per task)
   retries: {

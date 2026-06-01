@@ -44,9 +44,15 @@ export async function POST(request: Request) {
     edges,
   });
 
-  await prisma.taskRun.create({
-    data: { runId: handle.id, projectId: project.id, userId },
-  });
+  try {
+    await prisma.taskRun.upsert({
+      where: { runId: handle.id },
+      create: { runId: handle.id, projectId: project.id, userId },
+      update: {},
+    });
+  } catch (err) {
+    console.error("[spec] Failed to persist TaskRun record, run is still queued:", err);
+  }
 
   return NextResponse.json({ runId: handle.id }, { status: 201 });
 }

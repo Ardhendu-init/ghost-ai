@@ -25,7 +25,7 @@ export function isAiStatusFeedPayload(value: unknown): value is AiStatusFeedPayl
 export const chatMessageSchema = z.object({
   id: z.string(),
   sender: z.string(),
-  role: z.literal("user"),
+  role: z.enum(["user", "assistant"]),
   content: z.string().min(1),
   timestamp: z.number(),
 });

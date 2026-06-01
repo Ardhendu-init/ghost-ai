@@ -1,7 +1,7 @@
-import { task, logger, metadata } from "@trigger.dev/sdk/v3";
+import { schemaTask, logger, metadata, AbortTaskRunError } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 import { OpenRouter } from "@openrouter/sdk";
-import { put } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { mutateFlow } from "@liveblocks/react-flow/node";
 import type { Node, Edge } from "@xyflow/react";
@@ -50,7 +50,6 @@ const payloadSchema = z.object({
   edges: z.array(edgeSchema).default([]),
 });
 
-type GenerateSpecPayload = z.infer<typeof payloadSchema>;
 type NodeEntry = z.infer<typeof nodeSchema>;
 type EdgeEntry = z.infer<typeof edgeSchema>;
 
@@ -84,7 +83,7 @@ function buildSystemPrompt(): string {
 function buildUserPrompt(
   nodes: NodeEntry[],
   edges: EdgeEntry[],
-  chatHistory: GenerateSpecPayload["chatHistory"],
+  chatHistory: z.infer<typeof payloadSchema>["chatHistory"],
 ): string {
   if (nodes.length === 0) {
     return "The canvas is empty. Generate a placeholder spec noting that no components have been added yet.";
@@ -121,23 +120,20 @@ function buildUserPrompt(
   return parts.join("\n");
 }
 
-export const generateSpec = task({
+export const generateSpec = schemaTask({
   id: "generate-spec",
+  schema: payloadSchema,
   maxDuration: 300,
   retry: {
     maxAttempts: 3,
-    factor: 2,
-    minTimeoutInMs: 1000,
+    factor: 1.8,
+    minTimeoutInMs: 500,
     maxTimeoutInMs: 30000,
     randomize: true,
   },
-  run: async (payload: GenerateSpecPayload) => {
-    const validated = payloadSchema.safeParse(payload);
-    if (!validated.success) {
-      throw new Error(`Invalid payload: ${validated.error.message}`);
-    }
-    const { projectId, roomId, chatHistory } = validated.data;
-    let { nodes, edges } = validated.data;
+  run: async (payload) => {
+    const { projectId, roomId, chatHistory } = payload;
+    let { nodes, edges } = payload;
 
     // If the caller sent an empty canvas, read the live state from Liveblocks
     // so the spec always reflects the current diagram.
@@ -169,7 +165,7 @@ export const generateSpec = task({
     metadata.set("status", "generating").set("nodeCount", nodes.length);
 
     const apiKey = process.env.OPENROUTER_API_KEY ?? process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("Missing OPENROUTER_API_KEY / OPENAI_API_KEY");
+    if (!apiKey) throw new AbortTaskRunError("Missing OPENROUTER_API_KEY / OPENAI_API_KEY");
 
     const openrouter = new OpenRouter({ apiKey });
 
@@ -210,9 +206,15 @@ export const generateSpec = task({
       allowOverwrite: true,
     });
 
-    const specRecord = await prisma.projectSpec.create({
-      data: { projectId, filePath: blob.url },
-    });
+    let specRecord;
+    try {
+      specRecord = await prisma.projectSpec.create({
+        data: { projectId, filePath: blob.url },
+      });
+    } catch (err) {
+      await del(blob.url);
+      throw err;
+    }
 
     logger.info("Spec persisted", { specId: specRecord.id, url: blob.url });
     metadata.set("status", "complete").set("specLength", spec.length).set("specId", specRecord.id);

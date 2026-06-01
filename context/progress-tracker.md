@@ -536,9 +536,9 @@ Update this file whenever the current phase, active feature, or implementation s
     - Authenticates via Clerk (401 if unauthenticated)
     - Verifies project access via `checkProjectAccess` (403 if no access)
     - Verifies spec belongs to the project (404 otherwise)
-    - Fetches Markdown from Vercel Blob via `head()` + `downloadUrl` (same pattern as canvas GET)
+    - Fetches Markdown from Vercel Blob via `get()` (private access); checks `statusCode === 200`, returns `result.stream`
     - Returns file as `text/markdown` attachment with `Content-Disposition: attachment; filename="spec-{specId}.md"`
-    - Handles not-found and blob fetch errors properly
+    - Handles not-found (`spec.filePath` null check, result null or non-200 status) and blob fetch errors (502)
   - ✓ Build passes (`npm run build` successful, no TypeScript errors)
 
 - Spec generation backend (28-spec-genration-flow.md):

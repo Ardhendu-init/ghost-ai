@@ -7,7 +7,7 @@ in real time, and reflect AI-driven canvas updates through Liveblocks.
 
 - On submit:
   - push the user message to the `ai-chat` feed
-  - call `POST /api/ai/design` with `{ prompt, roomId }`
+  - call `POST /api/ai/design` with `{ prompt, roomId, projectId }`
   - read `{ runId, publicToken }` from the response
 - store `runId` and `publicToken` in local state
 
