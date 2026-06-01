@@ -1,0 +1,19 @@
+{
+  "dependencies": {
+    "@prisma/client": "7.8.0",
+    "import-in-the-middle": "1.11.0"
+  },
+  "devDependencies": {
+  },
+  "name": "ghost-ai",
+  "peerDependencies": {
+  },
+  "private": true,
+  "scripts": {
+  },
+  "trustedDependencies": [
+    "@prisma/client",
+    "import-in-the-middle"
+  ],
+  "version": "0.1.0"
+}

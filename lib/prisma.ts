@@ -22,8 +22,20 @@ function createPrismaClient(): PrismaClient {
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+function getPrismaClient(): PrismaClient {
+  const client = globalForPrisma.prisma ?? createPrismaClient();
+  if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = client;
+  }
+  return client;
 }
+
+// Lazy proxy: the client is only instantiated on first property access, not at
+// import time. This keeps `import { prisma }` side-effect free so it can't throw
+// during Trigger.dev deploy indexing (which imports task files without
+// DATABASE_URL set). Call sites use `prisma.model...` unchanged.
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getPrismaClient(), prop, receiver);
+  },
+});
