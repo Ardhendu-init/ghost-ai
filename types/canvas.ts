@@ -30,7 +30,7 @@ export type NodeData = {
 
 export type CanvasNode = Node<NodeData, "canvasNode">;
 
-export type EdgeData = { label?: string };
+export type EdgeData = { label?: string; labelOffsetY?: number };
 export type CanvasEdge = Edge<EdgeData, "canvasEdge">;
 
 export type DragPayload = {

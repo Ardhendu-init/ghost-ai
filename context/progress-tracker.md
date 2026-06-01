@@ -521,13 +521,72 @@ Update this file whenever the current phase, active feature, or implementation s
   - Canvas updates remain Liveblocks-driven via `useLiveblocksFlow` — no manual sync
   - ✓ Build passes (`npm run build` successful, no TypeScript errors)
 
+- Spec persistence and download (29-spec-persistance-download.md):
+  - Added `ProjectSpec` model to `prisma/models/project.prisma`:
+    - Fields: `id` (cuid), `projectId` (FK → Project with cascade delete), `filePath` (Vercel Blob URL), `createdAt`
+    - Indexes on `projectId` and `(projectId, createdAt)`
+    - Added `specs ProjectSpec[]` relation to `Project` model
+    - Schema applied via `prisma db push`; client regenerated
+  - Updated `trigger/generate-spec.ts`:
+    - Imports `put` from `@vercel/blob` and `prisma` from `@/lib/prisma`
+    - After spec generation: creates a `ProjectSpec` record (placeholder `filePath`), uploads Markdown to Vercel Blob at `specs/{projectId}/{specId}.md` (private), updates record with blob URL
+    - Status advances to `"saving"` before upload, `"complete"` after; `specId` added to metadata and return value
+  - Created `app/api/projects/[projectId]/specs/[specId]/download/route.ts`:
+    - `GET /api/projects/[projectId]/specs/[specId]/download`
+    - Authenticates via Clerk (401 if unauthenticated)
+    - Verifies project access via `checkProjectAccess` (403 if no access)
+    - Verifies spec belongs to the project (404 otherwise)
+    - Fetches Markdown from Vercel Blob via `head()` + `downloadUrl` (same pattern as canvas GET)
+    - Returns file as `text/markdown` attachment with `Content-Disposition: attachment; filename="spec-{specId}.md"`
+    - Handles not-found and blob fetch errors properly
+  - ✓ Build passes (`npm run build` successful, no TypeScript errors)
+
+- Spec generation backend (28-spec-genration-flow.md):
+  - Created `app/api/ai/spec/route.ts` (`POST /api/ai/spec`):
+    - Accepts `roomId`, `chatHistory`, `nodes`, `edges` — validated with Zod
+    - Authenticates via Clerk (401 if unauthenticated)
+    - Resolves projectId from `roomId` via `checkProjectAccess` — client-supplied projectId is never trusted
+    - Returns 403 if user has no project access
+    - Triggers `generate-spec` Trigger.dev task
+    - Creates a `TaskRun` record linking the run to the authenticated user
+    - Returns `{ runId }` with 201
+  - Created `app/api/ai/spec/token/route.ts` (`POST /api/ai/spec/token`):
+    - Accepts `runId`, authenticates via Clerk
+    - Verifies `TaskRun` ownership (403 if not the run owner)
+    - Issues Trigger.dev public token scoped to that run with 1-hour expiration
+    - Returns `{ token }`
+  - Created `trigger/generate-spec.ts`:
+    - Exports `generateSpec` task (`id: "generate-spec"`) using `task()` from `@trigger.dev/sdk/v3`
+    - Payload validated with Zod (`projectId`, `roomId`, `chatHistory`, `nodes`, `edges`)
+    - Calls OpenRouter (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`) with a structured system prompt
+    - Builds a canvas-aware user prompt from nodes, edges, and last 10 chat messages
+    - Strips `<think>` reasoning traces before returning
+    - Uses `metadata` from `@trigger.dev/sdk/v3` to track `status` + `specLength` for realtime progress
+    - Returns `{ spec, projectId, nodeCount }` — plain Markdown, not yet persisted (spec storage is a future step)
+    - Follows existing retry/logging patterns from `design-agent.ts`
+  - ✓ Build passes (`npm run build` successful, no TypeScript errors)
+
+- Spec UI integration (30-spec-ui-integration.md):
+  - Created `app/api/projects/[projectId]/specs/route.ts` (`GET`):
+    - Authenticates via `checkProjectAccess`; returns 403 if no access
+    - Returns list of `ProjectSpec` records (`id`, `createdAt`, `filePath`) ordered by `createdAt` desc
+  - Installed `react-markdown` for client-side Markdown rendering
+  - Updated `components/editor/ai-sidebar.tsx`:
+    - Replaced placeholder `DemoSpecCard` + "Generate Spec" button in Specs tab with real `SpecsPanel` component
+    - `SpecsPanel`: fetches `/api/projects/{projectId}/specs` on mount; shows loading spinner, empty state, or scrollable list
+    - `SpecListItem`: displays filename (extracted from Blob URL) + formatted `createdAt`; clickable to open preview; hover-reveal download button
+    - `SpecPreviewModal`: Base UI `Dialog` showing spec content fetched from the download endpoint as Markdown; Close + Download actions in footer
+    - Download action: `window.location.href` to the download endpoint triggers browser file download
+    - Content rendered with `ReactMarkdown` and scoped typography styles (no `@tailwindcss/typography` dependency)
+  - ✓ Build passes (`npm run build` successful, no TypeScript errors)
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- Spec generation background task (canvas graph → Markdown spec saved to Vercel Blob + DB record)
+- None.
 
 ## Open Questions
 

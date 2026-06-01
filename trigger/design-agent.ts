@@ -104,6 +104,8 @@ function buildSystemPrompt(): string {
     "- Give every new node a unique id (e.g. 'n1', 'n2'). Use those same ids in edges.",
     "- When adding edges, source/target must reference node ids that exist or that you are adding.",
     "- Pick colors meaningfully (e.g. databases teal, gateways blue, external systems purple).",
+    "- Edge labels: only add a label when it conveys unique information not obvious from the nodes.",
+    "- Limit labeled edges to at most 5-6 per diagram; prefer leaving most edges unlabeled.",
     "",
     "Keep designs focused: typically 4-12 nodes unless the user asks for more.",
     "Only emit delete/move/resize/update ops when the user explicitly asks to modify existing nodes.",
@@ -310,17 +312,26 @@ export const designAgentTask = task({
     // 3b. Apply the remaining edits (edges, moves, resizes, updates, deletes)
     // in a single atomic mutation.
     if (otherActions.length > 0) {
+      // Cycle through Y-offsets so labels on parallel edges never stack.
+      const LABEL_OFFSETS = [-30, 30, -15, 15, 0, -45, 45];
+      let labeledEdgeCount = 0;
+
       try {
         await mutateFlow<Node, Edge>({ client, roomId }, (flow) => {
           for (const action of otherActions) {
             switch (action.op) {
               case "addEdge": {
+                const labelOffsetY = action.label
+                  ? LABEL_OFFSETS[labeledEdgeCount++ % LABEL_OFFSETS.length]
+                  : undefined;
                 const edge: CanvasEdge = {
                   id: `ai-${tag}-${action.id}`,
                   type: "canvasEdge",
                   source: resolveId(action.source),
                   target: resolveId(action.target),
-                  data: action.label ? { label: String(action.label) } : {},
+                  data: action.label
+                    ? { label: String(action.label), labelOffsetY }
+                    : {},
                 };
                 flow.addEdge(edge as unknown as Edge);
                 applied += 1;
