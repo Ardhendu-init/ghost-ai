@@ -14,10 +14,7 @@ export default defineConfig({
   runtime: "node",
   build: {
     extensions: [
-      prismaExtension({
-        mode: "legacy",
-        schema: "./prisma",
-      }),
+      prismaExtension({ mode: "modern" }),
     ],
   },
   // Default retry behavior for all tasks (can be overridden per task)
