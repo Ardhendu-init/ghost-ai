@@ -1,6 +1,15 @@
 ## Issues
 
-### 1. Ai chat box design and functional issues
+### 1. getting this error while deploying to vercel
 
-- The AI chat box design is not correct; it should be horizontally scrollable. Check best-practice chat designs online and implement all recommendations.
-- Spec is generated properly but the preview box design is off. The preview box should be wider so users can read the full spec. If it has a fixed height, it must be scrollable.
+> Build error occurred
+> Error: Turbopack build failed with 1 errors:
+> ./lib/prisma.ts:1:1
+> Module not found: Can't resolve '../app/generated/prisma/client'
+> 1 | import { PrismaClient } from "../app/generated/prisma/client";
+
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+2 | import { withAccelerate } from "@prisma/extension-accelerate";
+3 | import { PrismaPg } from "@prisma/adapter-pg";
+4 |
