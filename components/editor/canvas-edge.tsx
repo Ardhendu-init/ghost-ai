@@ -129,7 +129,7 @@ export function CanvasEdgeComponent({
       <EdgeLabelRenderer>
         <div
           style={{
-            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + (data?.labelOffsetY ?? 0)}px)`,
             pointerEvents: "all",
           }}
           className="absolute nodrag nopan"

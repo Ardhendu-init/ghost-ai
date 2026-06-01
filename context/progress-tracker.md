@@ -8,7 +8,7 @@ Update this file whenever the current phase, active feature, or implementation s
 
 ## Current Goal
 
-- Add editor canvas/workspace area (Liveblocks + React Flow)
+- AI design generation end-to-end (prompt → Gemini → live canvas updates with AI presence/status)
 
 ## Completed
 
@@ -434,13 +434,159 @@ Update this file whenever the current phase, active feature, or implementation s
   - **UserButton in workspace navbar**: already absent from `workspace-shell.tsx`; `editor-navbar.tsx` (editor home) still has it. ✓
   - ✓ Build passes (`npm run build` successful, no type errors)
 
+- Design agent API wiring (23-design-agent-api.md):
+  - Created `prisma/models/task-run.prisma` with `TaskRun` model:
+    - Fields: `runId` (unique), `projectId`, `userId`, `createdAt`
+    - Index on `runId`, compound index on `userId` + `projectId`
+    - Schema pushed via `prisma db push`; client regenerated
+  - Created `trigger/design-agent.ts`:
+    - Exports `designAgentTask` using `task()` from `@trigger.dev/sdk/v3`
+    - Accepts `{ prompt, roomId }` payload; logs and echoes input (no AI logic yet)
+  - Created `app/api/ai/design/route.ts` (`POST /api/ai/design`):
+    - Requires Clerk auth (401 if unauthenticated)
+    - Accepts `{ prompt, roomId, projectId }` body (400 if missing)
+    - Triggers `design-agent` task via `tasks.trigger` from Trigger.dev SDK
+    - Creates `TaskRun` record in Prisma
+    - Returns `{ runId }` with 201
+  - Created `app/api/ai/design/token/route.ts` (`POST /api/ai/design/token`):
+    - Requires Clerk auth (401 if unauthenticated)
+    - Accepts `{ runId }` body; 400 if missing
+    - Verifies ownership via `TaskRun` record (403 if not found or wrong user)
+    - Generates Trigger.dev public token scoped to that run via `auth.createPublicToken`
+    - Returns `{ token }`
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- AI design agent logic (24-implement-ai-logic.md):
+  - Created `types/ai.ts` (shared by the Trigger.dev task and client overlay):
+    - `AiStatus` (a `type`, not `interface`, so it satisfies Liveblocks' LSON check): `{ state, message, cursor, updatedAt }`
+    - `AI_PALETTE` (named color → `NodeColorPair` from `NODE_COLORS`), `PALETTE_NAMES`, `ALLOWED_SHAPES`, `SHAPE_DIMENSIONS`
+    - `DesignAction` union (addNode/moveNode/resizeNode/updateNode/deleteNode/addEdge/deleteEdge) and `DesignPlan`
+  - Updated `liveblocks.config.ts`: added optional `ai?: AiStatus | null` to `Storage` (optional keeps react-flow's lazy storage + RoomProvider `initialStorage` unaffected)
+  - Implemented `trigger/design-agent.ts` (full agent):
+    - Interprets the prompt via `@openrouter/sdk` (`openrouter.chat.send`) using `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` (NVIDIA Nemotron 3 Nano Omni, free); JSON is requested in the system prompt and extracted by a tolerant parser (strips `<think>` traces / ``` fences / takes the first `{...}` block — no forced `responseFormat`, since this is a reasoning model); key from `OPENROUTER_API_KEY ?? OPENAI_API_KEY`
+    - Mutates the collaborative canvas through the official server helper `mutateFlow` from `@liveblocks/react-flow/node` (same storage key as the client's `useLiveblocksFlow`) — supports add/move/resize/update/delete node and add/delete edge; model-local node ids remapped to `ai-{runId}-{id}` with edge endpoints resolved through the map; dangling edges pruned on node delete
+    - Enforces design rules: shapes clamped to `ALLOWED_SHAPES`, colors mapped through `AI_PALETTE`, grid-based spacing (260×160) with coordinate fallback and per-shape default dimensions
+    - Publishes a shared status feed + AI presence into Liveblocks storage `ai` key via the node client's `mutateStorage` — `thinking` → `working` (with ghost-cursor sweep as each node is added) → `done`/`error`, then clears presence after a short delay
+    - Errors handled gracefully: status set to `error`, presence cleared, error rethrown for Trigger.dev retry/visibility
+  - Created `components/editor/ai-overlay.tsx`: `AiCursor` (ghost cursor in flow space via `ViewportPortal`) and `AiStatusBanner`, both driven by `useStorage(root => root.ai)` so every participant sees the same AI presence/progress
+  - Updated `components/editor/flow-canvas.tsx`: renders `<AiCursor />` and a top-center `<Panel>` with `<AiStatusBanner />`
+  - Wired `components/editor/ai-sidebar.tsx`: `sendMessage` now POSTs to `/api/ai/design` with `{ prompt, roomId, projectId }` (roomId = projectId), with `isSending` guard and assistant ack/error messages; `projectId` prop threaded from `workspace-shell.tsx`
+  - ✓ Build passes (`npm run build` successful, no type errors)
+  - Note: the Trigger.dev task needs `OPENROUTER_API_KEY` (or `OPENAI_API_KEY`) and `LIVEBLOCKS_SECRET_KEY` available in its runtime env (Trigger dev/deploy), and the `design-agent` task must be deployed/running for triggers to execute
+
+- Shared AI present state (25-ai-present-state.md):
+  - Created `types/tasks.ts` with `AiStatusFeedPayload` type (`{ text?: string }`) and `isAiStatusFeedPayload` runtime guard
+  - Updated `liveblocks.config.ts`: added `aiStatusFeed?: AiStatusFeedPayload | null` to Storage alongside the existing `ai` key
+  - Updated `components/editor/canvas-wrapper.tsx`: added `children?: React.ReactNode` prop rendered inside `RoomProvider` (but outside Suspense) — gives sibling components access to Liveblocks hooks
+  - Updated `components/editor/workspace-shell.tsx`: moved `<AiSidebar>` from the content row into `<CanvasWrapper>` children so it lives inside the `RoomProvider`
+  - Updated `components/editor/ai-sidebar.tsx`:
+    - Imports `useStorage` (non-suspense) from `@liveblocks/react` to read shared room state
+    - `aiState` from `Storage.ai.state`; `isGenerating = isSending || aiState === "thinking" | "working"`
+    - Header bot icon shows a pulsing brand dot when `isGenerating`; subtitle switches to "Ghost AI is working…"
+    - Textarea disabled + border tinted brand when `isGenerating`; placeholder changes to "AI is working on the canvas…"
+    - Send button shows `Loader2` spinner while `isSending`, disabled when `isGenerating`
+    - `feedText` read from `Storage.aiStatusFeed` via `isAiStatusFeedPayload` guard; shown as a slim status bar above the input area
+  - Updated `components/editor/flow-canvas.tsx`:
+    - Added `ThinkingCursor` component — custom cursor SVG + name badge that shows `Loader2` spinner when `useOther(connectionId, o => o.presence.thinking)` is true
+    - `cursorsComponents = { Cursor: ThinkingCursor }` stable module-level ref passed to `<Cursors components={cursorsComponents} />`
+  - ✓ Build passes (`npm run build` successful, no type errors)
+
+- Sidebar chat feed (26-sidebar-chat-feed.md):
+  - Added `ChatMessage` Zod schema and type to `types/tasks.ts`:
+    - Fields: `id` (UUID), `sender` (display name), `role` (`"user"` literal), `content` (non-empty string), `timestamp` (number)
+    - `isChatMessage` runtime guard validates feed items before rendering
+  - Updated `liveblocks.config.ts`: added `aiChat?: LiveList<ChatMessage> | null` to Storage — room-scoped, separate from `aiStatusFeed`
+  - Updated `components/editor/ai-sidebar.tsx`:
+    - Added **Chat** tab between AI Architect and Specs tabs
+    - `RoomChatPanel` component: reads `aiChat` via `useStorage`, writes via `useMutation` (lazy-initialises `LiveList` on first send if absent)
+    - `useSelf()` provides the current user's display name as `sender`
+    - `RoomChatBubble`: own messages right-aligned (`bg-brand/10`), others left-aligned (`bg-muted`) with sender name + time shown
+    - Input and send button follow the same pattern as the AI Architect tab; Shift+Enter for newlines, Enter to send
+    - `sendError` state shows a small error message below the input if the mutation throws
+    - `ChatEmptyState` shown when no messages exist
+  - `ai-chat` feed remains fully separate from `aiStatusFeed`; no AI-generated replies wired in this spec
+  - ✓ Build passes (`npm run build` successful, no TypeScript errors)
+
+- Design agent frontend wiring (27-design-agent-frontend.md):
+  - Updated `app/api/ai/design/route.ts`: generates and returns `publicToken` (Trigger.dev public run-scoped token) alongside `runId` in the same 201 response — eliminates a second round-trip for the token
+  - Updated `components/editor/ai-sidebar.tsx`:
+    - AI Architect tab now reads/writes `ai-chat` Liveblocks feed (`useStorage` + `useMutation`) instead of local state — messages are collaborative and visible across clients
+    - `sendMessage` posts user message to `ai-chat` feed, calls `/api/ai/design`, stores returned `runId` + `publicToken` in local state
+    - `RunTracker` component: mounts while a run is in-flight, uses `useRealtimeRun(runId, { accessToken: publicToken })` from `@trigger.dev/react-hooks`; on terminal status (`COMPLETED`/`FAILED`/etc.) posts a final AI message to `ai-chat` and clears run state
+    - `isRunActive` flag (`isSending || runId !== null || aiState === "thinking/working"`) disables textarea and dims send button while AI is running
+    - Send button uses `#62C073` green when enabled; shows `Loader2` spinner while `isSending`
+    - Status strip (animated ping dot + `feedText`) renders above input only when `isRunActive` and status feed has content
+    - `ArchitectBubble`: user bubbles use `#62C073` background with dark text; AI bubbles use `bg-muted` dark background with light text
+    - Errors appended to `ai-chat` feed (collaborative) instead of local toast
+  - Canvas updates remain Liveblocks-driven via `useLiveblocksFlow` — no manual sync
+  - ✓ Build passes (`npm run build` successful, no TypeScript errors)
+
+- Spec persistence and download (29-spec-persistance-download.md):
+  - Added `ProjectSpec` model to `prisma/models/project.prisma`:
+    - Fields: `id` (cuid), `projectId` (FK → Project with cascade delete), `filePath` (Vercel Blob URL), `createdAt`
+    - Indexes on `projectId` and `(projectId, createdAt)`
+    - Added `specs ProjectSpec[]` relation to `Project` model
+    - Schema applied via `prisma db push`; client regenerated
+  - Updated `trigger/generate-spec.ts`:
+    - Imports `put` from `@vercel/blob` and `prisma` from `@/lib/prisma`
+    - After spec generation: creates a `ProjectSpec` record (placeholder `filePath`), uploads Markdown to Vercel Blob at `specs/{projectId}/{specId}.md` (private), updates record with blob URL
+    - Status advances to `"saving"` before upload, `"complete"` after; `specId` added to metadata and return value
+  - Created `app/api/projects/[projectId]/specs/[specId]/download/route.ts`:
+    - `GET /api/projects/[projectId]/specs/[specId]/download`
+    - Authenticates via Clerk (401 if unauthenticated)
+    - Verifies project access via `checkProjectAccess` (403 if no access)
+    - Verifies spec belongs to the project (404 otherwise)
+    - Fetches Markdown from Vercel Blob via `get()` (private access); checks `statusCode === 200`, returns `result.stream`
+    - Returns file as `text/markdown` attachment with `Content-Disposition: attachment; filename="spec-{specId}.md"`
+    - Handles not-found (`spec.filePath` null check, result null or non-200 status) and blob fetch errors (502)
+  - ✓ Build passes (`npm run build` successful, no TypeScript errors)
+
+- Spec generation backend (28-spec-genration-flow.md):
+  - Created `app/api/ai/spec/route.ts` (`POST /api/ai/spec`):
+    - Accepts `roomId`, `chatHistory`, `nodes`, `edges` — validated with Zod
+    - Authenticates via Clerk (401 if unauthenticated)
+    - Resolves projectId from `roomId` via `checkProjectAccess` — client-supplied projectId is never trusted
+    - Returns 403 if user has no project access
+    - Triggers `generate-spec` Trigger.dev task
+    - Creates a `TaskRun` record linking the run to the authenticated user
+    - Returns `{ runId }` with 201
+  - Created `app/api/ai/spec/token/route.ts` (`POST /api/ai/spec/token`):
+    - Accepts `runId`, authenticates via Clerk
+    - Verifies `TaskRun` ownership (403 if not the run owner)
+    - Issues Trigger.dev public token scoped to that run with 1-hour expiration
+    - Returns `{ token }`
+  - Created `trigger/generate-spec.ts`:
+    - Exports `generateSpec` task (`id: "generate-spec"`) using `task()` from `@trigger.dev/sdk/v3`
+    - Payload validated with Zod (`projectId`, `roomId`, `chatHistory`, `nodes`, `edges`)
+    - Calls OpenRouter (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`) with a structured system prompt
+    - Builds a canvas-aware user prompt from nodes, edges, and last 10 chat messages
+    - Strips `<think>` reasoning traces before returning
+    - Uses `metadata` from `@trigger.dev/sdk/v3` to track `status` + `specLength` for realtime progress
+    - Returns `{ spec, projectId, nodeCount }` — plain Markdown, not yet persisted (spec storage is a future step)
+    - Follows existing retry/logging patterns from `design-agent.ts`
+  - ✓ Build passes (`npm run build` successful, no TypeScript errors)
+
+- Spec UI integration (30-spec-ui-integration.md):
+  - Created `app/api/projects/[projectId]/specs/route.ts` (`GET`):
+    - Authenticates via `checkProjectAccess`; returns 403 if no access
+    - Returns list of `ProjectSpec` records (`id`, `createdAt`, `filePath`) ordered by `createdAt` desc
+  - Installed `react-markdown` for client-side Markdown rendering
+  - Updated `components/editor/ai-sidebar.tsx`:
+    - Replaced placeholder `DemoSpecCard` + "Generate Spec" button in Specs tab with real `SpecsPanel` component
+    - `SpecsPanel`: fetches `/api/projects/{projectId}/specs` on mount; shows loading spinner, empty state, or scrollable list
+    - `SpecListItem`: displays filename (extracted from Blob URL) + formatted `createdAt`; clickable to open preview; hover-reveal download button
+    - `SpecPreviewModal`: Base UI `Dialog` showing spec content fetched from the download endpoint as Markdown; Close + Download actions in footer
+    - Download action: `window.location.href` to the download endpoint triggers browser file download
+    - Content rendered with `ReactMarkdown` and scoped typography styles (no `@tailwindcss/typography` dependency)
+  - ✓ Build passes (`npm run build` successful, no TypeScript errors)
+
 ## In Progress
 
 - None.
 
 ## Next Up
 
-- AI canvas generation
+- None.
 
 ## Open Questions
 
