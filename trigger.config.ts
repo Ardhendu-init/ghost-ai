@@ -13,7 +13,12 @@ export default defineConfig({
   machine: "small-1x",
   runtime: "node",
   build: {
-    extensions: [prismaExtension({ mode: "modern" })],
+    extensions: [
+      prismaExtension({
+        mode: "legacy",
+        schema: "./prisma",
+      }),
+    ],
   },
   // Default retry behavior for all tasks (can be overridden per task)
   retries: {

@@ -1,4 +1,4 @@
-import { schemaTask, logger, metadata, AbortTaskRunError } from "@trigger.dev/sdk/v3";
+import { schemaTask, logger, metadata, AbortTaskRunError } from "@trigger.dev/sdk";
 import { z } from "zod";
 import { OpenRouter } from "@openrouter/sdk";
 import { put, del } from "@vercel/blob";
