@@ -580,6 +580,11 @@ Update this file whenever the current phase, active feature, or implementation s
     - Content rendered with `ReactMarkdown` and scoped typography styles (no `@tailwindcss/typography` dependency)
   - ✓ Build passes (`npm run build` successful, no TypeScript errors)
 
+- Interview-prep deep-dive documentation for specs 10–20 (`app-details-walkthrough/`):
+  - Created `spec-10-liveblocks-setup.md` through `spec-20-presence-avatars-cursor.md` (11 files), following the established walkthrough format (feature understanding, requirements breakdown, code walkthrough, data flow, architecture decisions, beginner/intermediate/senior interview Q&A, production discussion, doc references)
+  - Walkthroughs reflect the code as it exists today (e.g., spec 18 notes the import rework from spec 19; spec 12 documents the UUID node-id evolution from the spec's timestamp+counter)
+  - Completes the per-spec deep-dive series: specs 01–09 were documented previously; specs 21+ remain
+
 ## In Progress
 
 - None.
