@@ -10,6 +10,7 @@
 !.yarn/releases
 !.yarn/versions
 
+/app-details-walkthrough
 
 #issues/coverage
 /context/issues
